@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Interactive web toys — a small gallery of SDF experiments, playgrounds, and games." />
+    <meta property="og:title" content="playground" />
+    <meta property="og:description" content="Interactive web toys." />
+    <meta property="og:type" content="website" />
+    <title>playground</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      html {
+        background: #0a0a0f;
+      }
+      .card {
+        transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+      }
+      .card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.25);
+        box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.8);
+      }
+      .gradient-mask {
+        background:
+          radial-gradient(
+            circle at 30% 40%,
+            rgba(255, 120, 60, 0.4),
+            transparent 45%
+          ),
+          radial-gradient(
+            circle at 70% 60%,
+            rgba(60, 170, 255, 0.45),
+            transparent 45%
+          ),
+          radial-gradient(
+            circle at 50% 30%,
+            rgba(235, 210, 90, 0.35),
+            transparent 50%
+          ),
+          #14141c;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-[#0a0a0f] text-neutral-100 antialiased">
+    <header class="mx-auto max-w-5xl px-6 pt-16 pb-10">
+      <h1 class="text-5xl font-semibold tracking-tight">playground</h1>
+      <p class="mt-3 text-lg text-neutral-400">
+        인터랙티브 웹 토이 컬렉션. SDF 실험, 플레이그라운드, 작은 게임들.
+      </p>
+      <p class="mt-1 text-sm text-neutral-500">
+        by
+        <a
+          href="https://github.com/alysion07"
+          class="underline underline-offset-4 decoration-neutral-600 hover:decoration-neutral-300"
+          >alysion07</a
+        >
+        ·
+        <a
+          href="https://github.com/alysion07/playground"
+          class="underline underline-offset-4 decoration-neutral-600 hover:decoration-neutral-300"
+          >source</a
+        >
+      </p>
+    </header>
+
+    <main class="mx-auto max-w-5xl px-6 pb-24">
+      <section>
+        <h2 class="mb-4 text-xs font-mono uppercase tracking-widest text-neutral-500">Toys</h2>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <!-- Metaball Playground -->
+          <a
+            href="/metaball/"
+            class="card group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur"
+          >
+            <div class="gradient-mask relative aspect-[16/10] overflow-hidden">
+              <div class="absolute inset-0 flex items-end p-5">
+                <span class="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-mono text-white/80">
+                  v1
+                </span>
+              </div>
+            </div>
+            <div class="flex-1 p-5">
+              <h3 class="text-lg font-medium">Metaball Playground</h3>
+              <p class="mt-1 text-sm text-neutral-400">
+                SDF 기반 블롭 시뮬레이션. 중력·인력·점성 조정, 다섯 가지 프리셋.
+              </p>
+            </div>
+          </a>
+
+          <!-- Placeholder for next toy -->
+          <div
+            class="flex aspect-[16/10] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01] p-6 text-center text-sm text-neutral-500 sm:aspect-auto"
+          >
+            <div class="mb-2 font-mono text-xs uppercase tracking-widest text-neutral-600">
+              coming soon
+            </div>
+            <div>다음 토이 준비 중</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-16 text-sm text-neutral-500">
+        <h2 class="mb-3 text-xs font-mono uppercase tracking-widest text-neutral-500">About</h2>
+        <p>
+          취미로 만드는 작은 웹 실험들. 각 토이는 독립적으로 열고 공유할 수 있습니다.
+          소스는 위 GitHub 링크에서.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

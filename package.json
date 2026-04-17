@@ -1,0 +1,11 @@
+{
+  "name": "playground",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Interactive web toys — gallery hub and individual projects.",
+  "scripts": {
+    "build": "node build.mjs",
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\""
+  }
+}

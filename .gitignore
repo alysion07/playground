@@ -3,6 +3,8 @@ dist/
 .vite/
 .cache/
 *.local
+# Cloudflare Pages / wrangler
+.wrangler/
 
 # Env
 .env
