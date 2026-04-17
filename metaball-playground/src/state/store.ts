@@ -15,12 +15,12 @@ export const MAX_BLOBS = 32;
 export const DEFAULT_SEED = 1337;
 
 export const DEFAULT_SIM: SimParams = {
-  count: 5,
+  count: 6,
   blobSmoothness: 0.5,
   gravity: 0,
-  damping: 0.2,
-  attraction: 0.05,
-  mouseForce: 2,
+  damping: 0.05,
+  attraction: 0.01,
+  mouseForce: 4.5,
   boundaryMode: 'bounce',
   timeScale: 1,
 };

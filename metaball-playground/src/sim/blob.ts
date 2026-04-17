@@ -24,8 +24,8 @@ export function createBlob(
   const margin = r + 0.02;
   const x = randRange(rng, -bounds.x + margin, bounds.x - margin);
   const y = randRange(rng, -bounds.y + margin, bounds.y - margin);
-  const vx = randRange(rng, -0.15, 0.15);
-  const vy = randRange(rng, -0.15, 0.15);
+  const vx = randRange(rng, -0.04, 0.04);
+  const vy = randRange(rng, -0.04, 0.04);
   const dt = 1 / 60;
   return {
     id: mintId(),
