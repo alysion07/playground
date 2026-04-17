@@ -50,6 +50,8 @@ function buildToy(toy) {
     log(`skip: ${toy.name} (missing dir)`);
     return;
   }
+  log(`installing deps for: ${toy.name}`);
+  run('npm install --no-audit --no-fund --prefer-offline', { cwd: toyDir });
   log(`building toy: ${toy.name} (base=${toy.base})`);
   run('npm run build', {
     cwd: toyDir,
