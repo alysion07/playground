@@ -1,14 +1,14 @@
 import type { WebGLRenderer } from 'three';
 import type { MetaballUniforms } from '../render/material';
-
-const MAX_DPR = 1.5;
+import { appStore } from '../state/store';
 
 export function installResize(
   renderer: WebGLRenderer,
   uniforms: MetaballUniforms,
 ): () => void {
   const apply = () => {
-    const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
+    const cap = appStore.getState().perf.dprCap;
+    const dpr = Math.max(0.5, Math.min(cap, window.devicePixelRatio));
     const w = window.innerWidth;
     const h = window.innerHeight;
     renderer.setPixelRatio(dpr);
@@ -18,6 +18,10 @@ export function installResize(
 
   apply();
 
+  const unsubscribePerf = appStore.subscribe((state, prev) => {
+    if (state.perf.dprCap !== prev.perf.dprCap) apply();
+  });
+
   const ro = new ResizeObserver(apply);
   ro.observe(document.documentElement);
   window.addEventListener('resize', apply);
@@ -25,5 +29,6 @@ export function installResize(
   return () => {
     ro.disconnect();
     window.removeEventListener('resize', apply);
+    unsubscribePerf();
   };
 }

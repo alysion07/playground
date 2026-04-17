@@ -1,53 +1,78 @@
 precision highp float;
 
+// MAX_BLOBS is injected via ShaderMaterial.defines.
+#ifndef MAX_BLOBS
+#define MAX_BLOBS 32
+#endif
+
 uniform vec2 uResolution;
-uniform float uTime;
+uniform int uCount;
 uniform float uK;
 uniform float uAA;
+uniform float uColorSoftness;
+uniform vec3 uBackground;
+uniform float uBloom;
+uniform float uVignette;
+uniform float uRim;
+// xy = position in world units, z = radius, w = unused.
+uniform vec4 uBlobsXYZR[MAX_BLOBS];
+uniform vec3 uColors[MAX_BLOBS];
+
+varying vec2 vNdc;
 
 float sdCircle(vec2 p, vec2 c, float r) {
   return length(p - c) - r;
 }
 
 float smin(float a, float b, float k) {
+  if (k <= 0.0) return min(a, b);
   float h = max(k - abs(a - b), 0.0) / k;
   return min(a, b) - h * h * k * 0.25;
 }
 
 void main() {
-  vec2 frag = gl_FragCoord.xy;
-  vec2 uv = frag / uResolution;
+  // World-space p: NDC.x scaled by aspect so x unit = y unit.
   float aspect = uResolution.x / max(uResolution.y, 1.0);
-  vec2 p = (uv - vec2(0.5)) * vec2(aspect, 1.0);
+  vec2 p = vec2(vNdc.x * aspect * 0.5, vNdc.y * 0.5);
 
-  float t = uTime * 0.001;
-  vec2 c0 = vec2(-0.22 + 0.05 * sin(t * 0.9), 0.02 + 0.04 * cos(t * 1.1));
-  vec2 c1 = vec2(0.22 + 0.05 * cos(t * 0.7), 0.10 + 0.04 * sin(t * 1.3));
-  vec2 c2 = vec2(0.00 + 0.08 * sin(t * 0.5), -0.18 + 0.03 * cos(t * 0.9));
-  float r0 = 0.14;
-  float r1 = 0.16;
-  float r2 = 0.12;
+  float d = 1e9;
+  vec3 cAcc = vec3(0.0);
+  float wAcc = 0.0;
 
-  vec3 col0 = vec3(1.00, 0.35, 0.20);
-  vec3 col1 = vec3(0.20, 0.70, 1.00);
-  vec3 col2 = vec3(0.95, 0.90, 0.30);
+  int count = uCount;
+  for (int i = 0; i < MAX_BLOBS; i++) {
+    if (i >= count) break;
+    vec4 b = uBlobsXYZR[i];
+    float di = sdCircle(p, b.xy, b.z);
+    d = smin(d, di, uK);
+    float w = exp(-max(di, 0.0) * uColorSoftness);
+    cAcc += uColors[i] * w;
+    wAcc += w;
+  }
 
-  float d0 = sdCircle(p, c0, r0);
-  float d1 = sdCircle(p, c1, r1);
-  float d2 = sdCircle(p, c2, r2);
+  vec3 blobColor = (wAcc > 1e-5) ? (cAcc / wAcc) : uBackground;
 
-  float d = smin(smin(d0, d1, uK), d2, uK);
+  // Fake normal from gradient for rim lighting — we cheat and use screen-space
+  // distance derivative magnitude. For SDF this would be ∇d; here we approximate
+  // using dFdx/dFdy via smoothstep falloff on d itself.
+  float aaPx = max(uAA, 0.0001);
+  float aaWorld = aaPx * (1.0 / max(uResolution.y, 1.0));
+  float inside = 1.0 - smoothstep(0.0, aaWorld, d);
 
-  float softness = 20.0;
-  float w0 = exp(-max(d0, 0.0) * softness);
-  float w1 = exp(-max(d1, 0.0) * softness);
-  float w2 = exp(-max(d2, 0.0) * softness);
-  float wSum = w0 + w1 + w2;
-  vec3 color = (wSum > 1e-5) ? (col0 * w0 + col1 * w1 + col2 * w2) / wSum : vec3(0.05);
+  // Rim: brighten where |d| is near zero but on the inside half.
+  float rimBand = exp(-pow(d / (aaWorld * 6.0), 2.0));
+  vec3 rim = vec3(1.0) * rimBand * uRim * inside;
 
-  float mask = 1.0 - smoothstep(0.0, uAA, d);
-  vec3 bg = vec3(0.03, 0.03, 0.05);
-  vec3 outCol = mix(bg, color, mask);
+  // Fake bloom: extra glow outside the mask, falling off with distance.
+  float glow = exp(-max(d, 0.0) * (40.0 / max(uBloom * 2.0 + 0.2, 0.01)));
+  vec3 bloom = blobColor * glow * uBloom * (1.0 - inside);
 
-  gl_FragColor = vec4(outCol, 1.0);
+  // Background + blob core + rim + bloom.
+  vec3 col = mix(uBackground, blobColor + rim, inside) + bloom;
+
+  // Vignette based on NDC distance from center.
+  float vig = 1.0 - uVignette * smoothstep(0.6, 1.4, length(vNdc));
+  col *= vig;
+
+  gl_FragColor = vec4(col, 1.0);
 }

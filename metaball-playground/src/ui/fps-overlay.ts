@@ -1,8 +1,18 @@
+import { appStore } from '../state/store';
+
 export function mountFpsOverlay(el: HTMLElement): (timeMs: number) => void {
   let lastMs: number | null = null;
   let emaFps = 0;
   const alpha = 0.1;
   let sinceRedrawMs = 0;
+
+  const applyVisibility = () => {
+    el.style.display = appStore.getState().perf.showFps ? '' : 'none';
+  };
+  applyVisibility();
+  appStore.subscribe((state, prev) => {
+    if (state.perf.showFps !== prev.perf.showFps) applyVisibility();
+  });
 
   return (timeMs: number) => {
     if (lastMs === null) {

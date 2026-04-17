@@ -4,6 +4,8 @@ import { createMetaballMaterial, type MetaballUniforms } from '../render/materia
 import { createFullscreenQuad } from '../render/fullscreen-quad';
 import { installResize } from '../util/resize';
 import { mountFpsOverlay } from '../ui/fps-overlay';
+import { installPointer, type PointerRuntime } from '../util/pointer';
+import { mountControls } from '../ui/controls';
 
 export type AppContext = {
   renderer: WebGLRenderer;
@@ -11,6 +13,7 @@ export type AppContext = {
   camera: OrthographicCamera;
   uniforms: MetaballUniforms;
   backend: Backend;
+  pointer: PointerRuntime;
   onFrame: (timeMs: number) => void;
 };
 
@@ -22,10 +25,6 @@ function getCanvas(): HTMLCanvasElement {
   return el;
 }
 
-function getFpsElement(): HTMLElement | null {
-  return document.getElementById('fps');
-}
-
 export async function bootstrap(): Promise<AppContext> {
   const canvas = getCanvas();
   const { renderer, backend } = await createRenderer(canvas);
@@ -34,13 +33,17 @@ export async function bootstrap(): Promise<AppContext> {
 
   installResize(renderer, uniforms);
 
-  const fpsEl = getFpsElement();
-  const tickFps = fpsEl ? mountFpsOverlay(fpsEl) : () => {};
+  const fpsEl = document.getElementById('fps');
+  const tickFps = fpsEl instanceof HTMLElement ? mountFpsOverlay(fpsEl) : () => {};
+
+  const pointer = installPointer(canvas);
+
+  const panelEl = document.getElementById('panel');
+  if (panelEl instanceof HTMLElement) mountControls(panelEl);
 
   const onFrame = (timeMs: number) => {
-    uniforms.uTime.value = timeMs;
     tickFps(timeMs);
   };
 
-  return { renderer, scene, camera, uniforms, backend, onFrame };
+  return { renderer, scene, camera, uniforms, backend, pointer, onFrame };
 }
