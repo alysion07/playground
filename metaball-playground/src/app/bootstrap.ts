@@ -6,6 +6,7 @@ import { installResize } from '../util/resize';
 import { mountFpsOverlay } from '../ui/fps-overlay';
 import { installPointer, type PointerRuntime } from '../util/pointer';
 import { mountControls } from '../ui/controls';
+import { hydrateFromUrl } from '../state/url-sync';
 
 export type AppContext = {
   renderer: WebGLRenderer;
@@ -26,6 +27,7 @@ function getCanvas(): HTMLCanvasElement {
 }
 
 export async function bootstrap(): Promise<AppContext> {
+  hydrateFromUrl();
   const canvas = getCanvas();
   const { renderer, backend } = await createRenderer(canvas);
   const { material, uniforms } = createMetaballMaterial(backend);

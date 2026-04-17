@@ -12,6 +12,7 @@ import {
 import type { BoundaryMode, PaletteName, PresetName } from '../state/types';
 import { PRESET_NAMES } from '../sim/presets';
 import { PALETTES, hexToRgb, rgbToHex } from '../util/color';
+import { buildShareUrl } from '../state/url-sync';
 
 type ColorProxy = { backgroundHex: string };
 
@@ -123,6 +124,22 @@ export function mountControls(host: HTMLElement): () => void {
     pane.refresh();
   });
 
+  // --- Share -----------------------------------------------------------------
+  const fShare = pane.addFolder({ title: 'Share' });
+  fShare.addButton({ title: 'Copy share URL' }).on('click', async () => {
+    const url = buildShareUrl();
+    window.history.replaceState(null, '', url);
+    try {
+      await navigator.clipboard.writeText(url);
+      flashToast('Share URL copied');
+    } catch {
+      prompt('Copy share URL:', url);
+    }
+  });
+  fShare.addButton({ title: 'Save PNG' }).on('click', () => {
+    saveCanvasPng();
+  });
+
   // --- Performance -----------------------------------------------------------
   const fPerf = pane.addFolder({ title: 'Performance' });
   fPerf
@@ -152,6 +169,42 @@ export function mountControls(host: HTMLElement): () => void {
     unsubscribe();
     pane.dispose();
   };
+}
+
+function saveCanvasPng(): void {
+  const canvas = document.getElementById('gl');
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  canvas.toBlob((blob) => {
+    if (!blob) {
+      flashToast('Screenshot failed');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `metaball-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, 'image/png');
+}
+
+let toastEl: HTMLDivElement | null = null;
+let toastTimer: number | null = null;
+function flashToast(message: string): void {
+  if (!toastEl) {
+    toastEl = document.createElement('div');
+    toastEl.style.cssText =
+      'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:rgba(20,20,28,.92);color:#fff;padding:8px 16px;border-radius:6px;font:13px/1.4 system-ui,sans-serif;pointer-events:none;opacity:0;transition:opacity .2s;z-index:9999';
+    document.body.appendChild(toastEl);
+  }
+  toastEl.textContent = message;
+  toastEl.style.opacity = '1';
+  if (toastTimer) window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    if (toastEl) toastEl.style.opacity = '0';
+  }, 1800);
 }
 
 function recolorBlobsWithPalette(palette: PaletteName): void {

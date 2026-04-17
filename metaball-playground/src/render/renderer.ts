@@ -30,7 +30,12 @@ export async function createRenderer(canvas: HTMLCanvasElement): Promise<Rendere
   const webgpuAvailable = await detectWebGPU();
   const backend: Backend = 'webgl2';
 
-  const renderer = new WebGLRenderer({ canvas, antialias: false, alpha: false });
+  const renderer = new WebGLRenderer({
+    canvas,
+    antialias: false,
+    alpha: false,
+    preserveDrawingBuffer: true,
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_DPR));
   renderer.setSize(window.innerWidth, window.innerHeight, false);
 
