@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.vite/
+.cache/
+*.local
+
+# Playwright
+playwright-report/
+test-results/
+.playwright/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

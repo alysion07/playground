@@ -7,5 +7,8 @@
   "scripts": {
     "build": "node build.mjs",
     "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\""
+  },
+  "dependencies": {
+    "claude": "^0.1.2"
   }
 }

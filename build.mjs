@@ -20,6 +20,11 @@ const TOYS = [
     dir: 'metaball-playground',
     base: '/metaball/',
   },
+  {
+    name: 'slime',
+    dir: 'slime-tower',
+    base: '/slime/',
+  },
 ];
 
 function log(msg) {
