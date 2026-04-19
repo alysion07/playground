@@ -42,7 +42,7 @@ export type Slime = {
   strandSec: number;
 };
 
-export type ModeName = 'zen' | 'tower' | 'vessel';
+export type ModeName = 'zen' | 'tower';
 
 export type PresetName = 'Aquarium' | 'Caramel' | 'Lab' | 'Mono' | 'Tetris';
 
@@ -57,7 +57,7 @@ export type SimParams = {
   // Smooth-min kernel width for CSG merge visual, in world units.
   mergeK: number;
   // Two slimes overlap by this fraction of the smaller radius before counting
-  // as a "merge candidate" (Week 2 will add dwell-time).
+  // as a "merge candidate".
   mergeOverlap: number;
   timeScale: number;
 };
@@ -96,7 +96,7 @@ export type PerformanceParams = {
 export type ScoreState = {
   // Max stacked height achieved this session (world units).
   maxHeight: number;
-  // Topples this session (Week 2+).
+  // Topples this session.
   topples: number;
 };
 

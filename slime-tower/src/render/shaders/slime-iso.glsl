@@ -99,13 +99,6 @@ float smin(float a, float b, float k) {
   return min(a, b) - h * h * k * 0.25;
 }
 
-// Birth animation: scale factor applied to radii based on slime age.
-// Fresh slimes start at 0.8× and swell to 1.0×; masks the radius pop that
-// happens when two spheres fuse into one larger sphere on merge.
-float birthScale(float birthT) {
-  return mix(0.8, 1.0, smoothstep(0.0, 1.0, birthT));
-}
-
 float sceneSDF(vec3 p) {
   float d = 1e6;
   int count = uCount;
@@ -113,8 +106,7 @@ float sceneSDF(vec3 p) {
   for (int i = 0; i < MAX_SLIMES; i++) {
     if (i >= count) break;
     vec3 c = uSlimePos[i].xyz;
-    float scale = birthScale(uSlimePos[i].w);
-    vec3 r = uSlimeRadii[i].xyz * scale;
+    vec3 r = uSlimeRadii[i].xyz;
     int shape = int(uSlimeRadii[i].w + 0.5);
     float di = sdShape(shape, p - c, r);
     d = smin(d, di, uMergeK);
@@ -126,7 +118,7 @@ float sceneSDF(vec3 p) {
     int partnerIdx = int(uSlimeImpact[i].z + (uSlimeImpact[i].z >= 0.0 ? 0.5 : -0.5));
     if (strandSec > 0.0 && strandSec < STRAND_LIFE && partnerIdx > i && partnerIdx < count) {
       vec3 cp = uSlimePos[partnerIdx].xyz;
-      vec3 rp = uSlimeRadii[partnerIdx].xyz * birthScale(uSlimePos[partnerIdx].w);
+      vec3 rp = uSlimeRadii[partnerIdx].xyz;
       float minR = min(min(r.x, r.y), min(r.z, min(rp.x, min(rp.y, rp.z))));
       float t = strandSec / STRAND_LIFE;
       float rr = minR * 0.45 * (1.0 - t);
@@ -157,8 +149,7 @@ vec3 blendColor(vec3 p) {
   for (int i = 0; i < MAX_SLIMES; i++) {
     if (i >= count) break;
     vec3 c = uSlimePos[i].xyz;
-    float scale = birthScale(uSlimePos[i].w);
-    vec3 r = uSlimeRadii[i].xyz * scale;
+    vec3 r = uSlimeRadii[i].xyz;
     int shape = int(uSlimeRadii[i].w + 0.5);
     float di = sdShape(shape, p - c, r);
     // Colour weight concentrates near the contributing slime's surface.
@@ -186,8 +177,7 @@ float groundShadow(vec2 floorXZ) {
   for (int i = 0; i < MAX_SLIMES; i++) {
     if (i >= count) break;
     vec3 c = uSlimePos[i].xyz;
-    float scale = birthScale(uSlimePos[i].w);
-    vec3 r = uSlimeRadii[i].xyz * scale;
+    vec3 r = uSlimeRadii[i].xyz;
     vec2 d = floorXZ - c.xz;
     float dist2 = dot(d, d);
     float h = max(c.y, 0.0);

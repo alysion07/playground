@@ -45,9 +45,6 @@ export function mountModeHud(host: HTMLElement): () => void {
       case 'tower':
         readout.textContent = `now ${currentH.toFixed(2)}m · best ${score.maxHeight.toFixed(2)}m · topples ${score.topples}`;
         break;
-      case 'vessel':
-        readout.textContent = `vessel mode — 소스 스캐폴드 (v2)`;
-        break;
     }
   };
 

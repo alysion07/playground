@@ -9,7 +9,6 @@ import type {
   ScoreState,
   SimParams,
   Slime,
-  Vec3,
 } from './types';
 
 export const MAX_SLIMES = 24;
@@ -128,21 +127,4 @@ export function setScore(patch: Partial<ScoreState>): void {
 
 export function setPreset(name: PresetName | null): void {
   appStore.setState({ presetName: name });
-}
-
-// Week 1 helper: a default "sky" backdrop tuned for the palette. Caramel feels
-// wrong against cold backgrounds; Mono reads best on neutral.
-export function backdropForPalette(p: PaletteName): { top: Vec3; bottom: Vec3 } {
-  switch (p) {
-    case 'Aquarium':
-      return { top: [0.8, 0.9, 0.98], bottom: [0.92, 0.95, 1.0] };
-    case 'Caramel':
-      return { top: [0.98, 0.92, 0.85], bottom: [1.0, 0.96, 0.9] };
-    case 'Lab':
-      return { top: [0.88, 0.96, 0.92], bottom: [0.95, 0.98, 0.94] };
-    case 'Mono':
-      return { top: [0.92, 0.92, 0.94], bottom: [0.96, 0.96, 0.98] };
-    case 'Tetris':
-      return { top: [0.06, 0.05, 0.12], bottom: [0.11, 0.09, 0.18] };
-  }
 }

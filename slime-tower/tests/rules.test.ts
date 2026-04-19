@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { SimParams, Slime } from '../src/state/types';
 import { _resetToppleState, findMerge, MERGE_MIN_AGE_SEC, tryTopple } from '../src/sim/rules';
-import { applySquish, computeLoads } from '../src/sim/support';
 
 const sim: SimParams = {
   gravity: 3.2,
@@ -60,112 +59,20 @@ describe('findMerge', () => {
     expect(findMerge(sim, [a, b])).toBeNull();
   });
 
-  it('births the merged slime pre-squished and stamps an impact pulse', () => {
+  it('births the merged slime as a full-size sphere', () => {
     const a = makeSlime({ id: 'a', pos: [0, 0.16, 0] });
     const b = makeSlime({ id: 'b', pos: [0.1, 0.16, 0] });
     const effect = findMerge(sim, [a, b])!;
     const merged = effect.added;
-    // Impact pulse fires at birth, driving the wobble from disc → sphere.
-    expect(merged.impactMag).toBe(1);
-    expect(merged.impactSec).toBe(0);
-    // Initial shape is a disc: ry < baseRadius, rx/rz > baseRadius.
-    expect(merged.radii[1]).toBeLessThan(merged.baseRadius);
-    expect(merged.radii[0]).toBeGreaterThan(merged.baseRadius);
-    // Volume-preserving against baseRadius (matches applySquish invariant).
-    const vol = merged.radii[0] * merged.radii[1] * merged.radii[2];
-    expect(vol).toBeCloseTo(merged.baseRadius ** 3, 5);
-    // Bottom of the squished disc should be at/above floor (no clipping).
+    expect(merged.impactMag).toBe(0);
+    expect(merged.baseRadius).toBeCloseTo(
+      Math.cbrt(a.baseRadius ** 3 + b.baseRadius ** 3),
+      6,
+    );
+    expect(merged.radii[0]).toBeCloseTo(merged.baseRadius, 6);
+    expect(merged.radii[1]).toBeCloseTo(merged.baseRadius, 6);
+    expect(merged.radii[2]).toBeCloseTo(merged.baseRadius, 6);
     expect(merged.pos[1] - merged.radii[1]).toBeGreaterThanOrEqual(0);
-  });
-});
-
-describe('computeLoads', () => {
-  it('assigns zero load to a lone slime', () => {
-    const slimes = [makeSlime({ id: 'a', pos: [0, 0.16, 0] })];
-    expect(Array.from(computeLoads(slimes))).toEqual([0]);
-  });
-
-  it('accumulates mass of slimes above in XZ footprint', () => {
-    const bottom = makeSlime({ id: 'bot', pos: [0, 0.16, 0] });
-    const top = makeSlime({ id: 'top', pos: [0.02, 0.48, 0] });
-    const loads = computeLoads([bottom, top]);
-    expect(loads[0]).toBeCloseTo(top.mass, 6);
-    expect(loads[1]).toBe(0);
-  });
-
-  it('skips slimes outside the XZ footprint', () => {
-    const bottom = makeSlime({ id: 'bot', pos: [0, 0.16, 0] });
-    const distant = makeSlime({ id: 'far', pos: [2, 0.48, 0] });
-    const loads = computeLoads([bottom, distant]);
-    expect(loads[0]).toBe(0);
-  });
-
-  it('ignores airborne slimes — contact check', () => {
-    const bottom = makeSlime({ id: 'bot', pos: [0, 0.16, 0] });
-    const airborne = makeSlime({ id: 'air', pos: [0, 2.6, 0] });
-    const loads = computeLoads([bottom, airborne]);
-    expect(loads[0]).toBe(0);
-  });
-
-  it('propagates cumulative load through a stack', () => {
-    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0] });
-    const b = makeSlime({ id: 'b', pos: [0, 0.48, 0] });
-    const c = makeSlime({ id: 'c', pos: [0, 0.8, 0] });
-    const loads = computeLoads([a, b, c]);
-    expect(loads[0]).toBeCloseTo(b.mass + c.mass, 6);
-    expect(loads[1]).toBeCloseTo(c.mass, 6);
-    expect(loads[2]).toBe(0);
-  });
-});
-
-describe('applySquish', () => {
-  it('preserves baseRadius when unloaded', () => {
-    const slimes = [makeSlime({ id: 'a', pos: [0, 0.16, 0] })];
-    applySquish(slimes, computeLoads(slimes));
-    expect(slimes[0].radii[1]).toBeCloseTo(slimes[0].baseRadius, 6);
-    expect(slimes[0].radii[0]).toBeCloseTo(slimes[0].baseRadius, 6);
-  });
-
-  it('compresses ry and expands rx/rz under load', () => {
-    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0] });
-    const b = makeSlime({ id: 'b', pos: [0, 0.48, 0] });
-    const slimes = [a, b];
-    applySquish(slimes, computeLoads(slimes));
-    expect(slimes[0].radii[1]).toBeLessThan(slimes[0].baseRadius);
-    expect(slimes[0].radii[0]).toBeGreaterThan(slimes[0].baseRadius);
-  });
-
-  it('volume-preserves (rx*ry*rz = baseRadius^3)', () => {
-    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0] });
-    const b = makeSlime({ id: 'b', pos: [0, 0.48, 0] });
-    const c = makeSlime({ id: 'c', pos: [0, 0.8, 0] });
-    const slimes = [a, b, c];
-    applySquish(slimes, computeLoads(slimes));
-    for (const s of slimes) {
-      const vol = s.radii[0] * s.radii[1] * s.radii[2];
-      const baseVol = s.baseRadius ** 3;
-      expect(vol).toBeCloseTo(baseVol, 5);
-    }
-  });
-
-  it('impact pulse pushes ry below the unloaded baseline', () => {
-    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0], impactMag: 1, impactSec: 0 });
-    applySquish([a], new Float32Array([0]));
-    expect(a.radii[1]).toBeLessThan(a.baseRadius);
-  });
-
-  it('impact pulse volume-preserves mid-wobble', () => {
-    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0], impactMag: 1, impactSec: 0 });
-    applySquish([a], new Float32Array([0]));
-    const vol = a.radii[0] * a.radii[1] * a.radii[2];
-    expect(vol).toBeCloseTo(a.baseRadius ** 3, 5);
-  });
-
-  it('impact pulse decays — far-future t approaches unloaded radii', () => {
-    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0], impactMag: 1, impactSec: 2.0 });
-    applySquish([a], new Float32Array([0]));
-    // exp(-2/0.12) ≈ 1e-7 → negligible pulse, so ry ≈ baseRadius.
-    expect(Math.abs(a.radii[1] - a.baseRadius)).toBeLessThan(1e-4);
   });
 });
 
@@ -177,21 +84,38 @@ describe('tryTopple', () => {
     expect(tryTopple(slimes, 1000).toppled).toBe(false);
   });
 
-  it('triggers when CoM drifts past the base footprint', () => {
-    // Base slime at origin. Top slime offset so far in X that CoM exits.
+  it('does not topple a 2-slime stack — that is natural settling, not a tower collapse', () => {
+    // Two slimes leaning is handled by separate(); topple is reserved for
+    // stacks of 3+. See TOPPLE_MIN_TOWER in rules.ts.
     const base = makeSlime({ id: 'base', pos: [0, 0.16, 0] });
     const offset = makeSlime({ id: 'top', pos: [0.35, 1.0, 0] });
-    const slimes = [base, offset];
-    expect(tryTopple(slimes, 1000).toppled).toBe(true);
+    expect(tryTopple([base, offset], 1000).toppled).toBe(false);
+    // Even after dwell elapses, still no fire — the size gate blocks it.
+    expect(tryTopple([base, offset], 1300).toppled).toBe(false);
+  });
+
+  it('triggers when CoM drifts past the base footprint (3+ slimes, after dwell)', () => {
+    // Stack of 3 with the top two leaning past the base. First call arms the
+    // dwell timer; subsequent call after TOPPLE_DWELL_MS fires.
+    const base = makeSlime({ id: 'base', pos: [0, 0.16, 0] });
+    const mid = makeSlime({ id: 'mid', pos: [0.3, 0.5, 0] });
+    const top = makeSlime({ id: 'top', pos: [0.35, 1.0, 0] });
+    const slimes = [base, mid, top];
+    // First call within dwell window — arms timer, does not fire.
+    expect(tryTopple(slimes, 1000).toppled).toBe(false);
+    // After 200ms dwell, fires.
+    expect(tryTopple(slimes, 1250).toppled).toBe(true);
   });
 
   it('respects the cooldown', () => {
     const base = makeSlime({ id: 'base', pos: [0, 0.16, 0] });
-    const offset = makeSlime({ id: 'top', pos: [0.35, 1.0, 0] });
-    const slimes = [base, offset];
-    expect(tryTopple(slimes, 1000).toppled).toBe(true);
+    const mid = makeSlime({ id: 'mid', pos: [0.3, 0.5, 0] });
+    const top = makeSlime({ id: 'top', pos: [0.35, 1.0, 0] });
+    const slimes = [base, mid, top];
+    expect(tryTopple(slimes, 1000).toppled).toBe(false);
+    expect(tryTopple(slimes, 1250).toppled).toBe(true);
     // Immediate retry should be blocked by cooldown.
-    expect(tryTopple(slimes, 1100).toppled).toBe(false);
+    expect(tryTopple(slimes, 1350).toppled).toBe(false);
   });
 
   it('does not topple when a newly spawned slime is airborne and far from the base', () => {

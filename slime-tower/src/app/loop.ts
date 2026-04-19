@@ -10,7 +10,6 @@ import {
 } from '../state/store';
 import { SHAPE_INDEX } from '../state/types';
 import { step, towerHeight } from '../sim/physics3d';
-import { applySquish, computeLoads } from '../sim/support';
 import { getRipples, pushRipple, tickRipples } from '../sim/effects';
 import { CAMERA_CENTER, ORTHO_HALF_H } from '../render/camera';
 import { findMerge, tryTopple } from '../sim/rules';
@@ -47,10 +46,6 @@ export function startLoop(ctx: AppContext): () => void {
     const floorHits = step(dt, state.sim, slimes, WORLD);
     for (const hit of floorHits) pushRipple(hit.x, hit.z, hit.mag);
     tickRipples(dt);
-
-    // Apply squish after physics — load is driven by current XZ positions.
-    const loads = computeLoads(slimes);
-    applySquish(slimes, loads);
 
     const effect = findMerge(state.sim, slimes);
     if (effect) {
@@ -221,10 +216,7 @@ function uploadUniforms(ctx: AppContext): void {
   for (let i = 0; i < slimes.length; i++) idToIdx.set(slimes[i].id, i);
   for (let i = 0; i < slimes.length; i++) {
     const s = slimes[i];
-    // Pack birth progress (0→1 over BIRTH_DURATION) into posArr[i].w so the
-    // shader can scale radii and mask the radius pop on merge.
-    const birthT = Math.min(1, s.ageSec / 0.3);
-    posArr[i].set(s.pos[0], s.pos[1], s.pos[2], birthT);
+    posArr[i].set(s.pos[0], s.pos[1], s.pos[2], 0);
     // Shape index packed into radii.w so the shader can dispatch between
     // sphere / capsule / box / torus SDFs without another uniform array.
     radArr[i].set(s.radii[0], s.radii[1], s.radii[2], SHAPE_INDEX[s.shape]);

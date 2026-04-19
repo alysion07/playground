@@ -6,6 +6,11 @@ const MAX_SUBSTEPS = 3;
 const FIXED_DT = 1 / 120;
 const FLOOR_RESTITUTION = 0.3;
 const WALL_RESTITUTION = 0.5;
+// Lateral (XZ) velocity damping rate (1/sec) applied while a slime is in
+// floor contact. Without it, slimes that land off-centre keep sliding
+// indefinitely because Verlet has no implicit ground friction. Tuned to
+// noticeably grip without freezing motion mid-roll.
+const FLOOR_FRICTION_RATE = 3.5;
 
 // --- Impact + strand tuning -------------------------------------------------
 // Ignore closing normal velocities below this — grazing re-contact shouldn't
@@ -131,7 +136,7 @@ function substep(
   }
 
   // World bounds.
-  for (let i = 0; i < n; i++) clampToBounds(slimes[i], bounds, hits);
+  for (let i = 0; i < n; i++) clampToBounds(slimes[i], bounds, hits, h);
 }
 
 // Position correction runs with full prev-follow so the separation itself
@@ -271,19 +276,8 @@ const SHAPE_COLLISION: Record<ShapeKind, number> = {
   box: 0.92,
 };
 
-// Mirrors the shader's birth scale so physics collisions do not fire before
-// the visual silhouette actually touches. Without this, freshly spawned
-// slimes (rendered at 0.8× for 0.3s) register phantom contacts and get
-// kicked by the separation resolver.
-function birthScaleFor(ageSec: number): number {
-  if (ageSec >= 0.3) return 1;
-  const t = ageSec / 0.3;
-  const s = t * t * (3 - 2 * t); // smoothstep
-  return 0.8 + 0.2 * s;
-}
-
 function collisionRadius(s: Slime): number {
-  return s.baseRadius * SHAPE_COLLISION[s.shape] * birthScaleFor(s.ageSec);
+  return s.baseRadius * SHAPE_COLLISION[s.shape];
 }
 
 // Pair-separation mass: "anchor" slimes behave as nearly immovable so upper
@@ -350,7 +344,7 @@ function reflectAxis(
   return [newPos, newPrev];
 }
 
-function clampToBounds(s: Slime, bounds: Bounds3, hits: FloorHit[]): void {
+function clampToBounds(s: Slime, bounds: Bounds3, hits: FloorHit[], h: number): void {
   const rx = s.radii[0];
   const ry = s.radii[1];
   const rz = s.radii[2];
@@ -377,6 +371,14 @@ function clampToBounds(s: Slime, bounds: Bounds3, hits: FloorHit[]): void {
       }
       const vy = s.pos[1] - s.prev[1];
       s.prev[1] = s.pos[1] + vy * FLOOR_RESTITUTION;
+      // Lateral friction: damp XZ velocity each substep of floor contact.
+      // Verlet has no built-in friction, so a slime landing sideways would
+      // otherwise glide forever.
+      const frictionDecay = Math.exp(-FLOOR_FRICTION_RATE * h);
+      const vxNow = s.pos[0] - s.prev[0];
+      const vzNow = s.pos[2] - s.prev[2];
+      s.prev[0] = s.pos[0] - vxNow * frictionDecay;
+      s.prev[2] = s.pos[2] - vzNow * frictionDecay;
     }
   }
   if (s.pos[1] > bounds.y - ry) {

@@ -92,7 +92,7 @@ function isPalette(v: unknown): v is PaletteName {
 }
 
 function isMode(v: unknown): v is ModeName {
-  return v === 'zen' || v === 'tower' || v === 'vessel';
+  return v === 'zen' || v === 'tower';
 }
 
 function decode(raw: string): Encoded | null {

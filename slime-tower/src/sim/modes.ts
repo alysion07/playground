@@ -18,11 +18,6 @@ export const MODES: Record<ModeName, ModeDef> = {
     label: 'Tower',
     hint: '최대 높이 도전',
   },
-  vessel: {
-    name: 'vessel',
-    label: 'Vessel',
-    hint: '목표 형상 채우기 (soon)',
-  },
 };
 
-export const MODE_ORDER: ModeName[] = ['zen', 'tower', 'vessel'];
+export const MODE_ORDER: ModeName[] = ['zen', 'tower'];
