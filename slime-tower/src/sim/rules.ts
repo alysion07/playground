@@ -67,6 +67,13 @@ const TOPPLE_COOLDOWN_MS = 700;
 const TOPPLE_COM_MARGIN = 0.92;
 // How hard the impulse pushes (world units / frame of prev-offset).
 const TOPPLE_IMPULSE = 0.05;
+// A slime only counts as "on the tower" if:
+//  - its XZ lies within this many base-radii of the base centroid AND
+//  - it has been alive long enough to plausibly have settled onto the stack.
+// The XZ filter catches unrelated drops at a distant XZ. The age filter
+// catches fresh drops whose centre is near the base XZ but still airborne.
+const TOWER_FOOTPRINT_MULT = 4.0;
+const TOWER_MIN_AGE_SEC = 0.25;
 
 let lastToppleMs = -Infinity;
 
@@ -106,15 +113,30 @@ export function tryTopple(slimes: Slime[], nowMs: number): ToppleResult {
   // Floor of 0.15m so a lone slime still has a sliver of tolerance.
   baseR = Math.max(baseR, 0.15);
 
-  // Total CoM.
+  // Only settled slimes within the tower footprint participate. Floor
+  // contacts are always in (they form the base); for everyone else we
+  // require proximity to the base in XZ and enough age to have landed.
+  const towerRadius = baseR * TOWER_FOOTPRINT_MULT;
+  const towerRadius2 = towerRadius * towerRadius;
+  const contactSet = new Set(contacts);
+  const towerIndices: number[] = [];
   let comX = 0;
   let comZ = 0;
   let totalMass = 0;
-  for (const s of slimes) {
+  for (let i = 0; i < slimes.length; i++) {
+    const s = slimes[i];
+    if (!contactSet.has(i)) {
+      const dx = s.pos[0] - baseX;
+      const dz = s.pos[2] - baseZ;
+      if (dx * dx + dz * dz > towerRadius2) continue;
+      if (s.ageSec < TOWER_MIN_AGE_SEC) continue;
+    }
     comX += s.pos[0] * s.mass;
     comZ += s.pos[2] * s.mass;
     totalMass += s.mass;
+    towerIndices.push(i);
   }
+  if (totalMass === 0 || towerIndices.length < 2) return { toppled: false };
   comX /= totalMass;
   comZ /= totalMass;
 
@@ -126,9 +148,11 @@ export function tryTopple(slimes: Slime[], nowMs: number): ToppleResult {
   const dirX = devX / dev;
   const dirZ = devZ / dev;
 
-  // Apply lateral impulse to every slime, scaled by height above the contact
-  // plane. Floor-touching slimes stay nearly still; tall stacks whip outward.
-  for (const s of slimes) {
+  // Apply lateral impulse only to the tower slimes, scaled by height above
+  // the contact plane. Off-tower slimes (e.g. an unrelated drop in mid-air)
+  // are not kicked.
+  for (const i of towerIndices) {
+    const s = slimes[i];
     const h = Math.max(0, s.pos[1] - 0.25);
     const kick = TOPPLE_IMPULSE * (1 + h * 0.8);
     s.prev[0] -= dirX * kick;

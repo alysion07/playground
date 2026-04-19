@@ -58,7 +58,13 @@ function substep(h: number, sim: SimParams, slimes: Slime[], bounds: Bounds3): v
 // explicitly kill most of the closing (normal) velocity while leaving
 // tangential motion alone. That gives inelastic stacking without
 // pinning sliding motion.
-const NORMAL_VEL_DAMP = 0.75;
+const NORMAL_VEL_DAMP = 0.6;
+// Contact friction: damp tangential relative velocity while slimes touch so
+// a slime landing sideways next to another does not keep gliding off into
+// the distance. Only applied on CLOSING contacts and scaled by overlap
+// depth so glancing touches do not inject energy.
+const CONTACT_FRICTION_MAX = 0.18;
+const FRICTION_OVERLAP_SATURATE = 0.03;
 // Cap per-substep position correction to avoid the "teleport pushing out"
 // failure mode when two shapes overlap deeply in a single integration step.
 const MAX_CORRECTION_PER_SUBSTEP = 0.04;
@@ -107,17 +113,42 @@ function separate(a: Slime, b: Slime): void {
   const bvx = b.pos[0] - b.prev[0];
   const bvy = b.pos[1] - b.prev[1];
   const bvz = b.pos[2] - b.prev[2];
-  const vN = (bvx - avx) * nx + (bvy - avy) * ny + (bvz - avz) * nz;
-  if (vN < 0) {
-    const impulse = -vN * NORMAL_VEL_DAMP;
-    const impA = impulse * wA;
-    const impB = impulse * wB;
-    a.prev[0] += nx * impA;
-    a.prev[1] += ny * impA;
-    a.prev[2] += nz * impA;
-    b.prev[0] -= nx * impB;
-    b.prev[1] -= ny * impB;
-    b.prev[2] -= nz * impB;
+  const vRelX = bvx - avx;
+  const vRelY = bvy - avy;
+  const vRelZ = bvz - avz;
+  const vN = vRelX * nx + vRelY * ny + vRelZ * nz;
+  // Both normal damping and tangential friction only fire on a closing
+  // contact. Glancing contacts (vN ≥ 0) leave velocities untouched so a
+  // slime that merely brushes past another does not get a phantom kick.
+  if (vN >= 0) return;
+
+  const impulse = -vN * NORMAL_VEL_DAMP;
+  const impA = impulse * wA;
+  const impB = impulse * wB;
+  a.prev[0] += nx * impA;
+  a.prev[1] += ny * impA;
+  a.prev[2] += nz * impA;
+  b.prev[0] -= nx * impB;
+  b.prev[1] -= ny * impB;
+  b.prev[2] -= nz * impB;
+
+  // Friction fades in with overlap depth. A near-zero overlap (grazing)
+  // applies almost no friction; a deep overlap applies the full coefficient.
+  // Prevents the "first-contact teleport" feel where a landing slime got
+  // energy siphoned even when only a corner tipped in.
+  const overlapDepth = rSum - d;
+  const frictionScale = Math.min(overlapDepth / FRICTION_OVERLAP_SATURATE, 1);
+  const friction = CONTACT_FRICTION_MAX * frictionScale;
+  if (friction > 0) {
+    const vtX = vRelX - vN * nx;
+    const vtY = vRelY - vN * ny;
+    const vtZ = vRelZ - vN * nz;
+    a.prev[0] -= vtX * friction * wA;
+    a.prev[1] -= vtY * friction * wA;
+    a.prev[2] -= vtZ * friction * wA;
+    b.prev[0] += vtX * friction * wB;
+    b.prev[1] += vtY * friction * wB;
+    b.prev[2] += vtZ * friction * wB;
   }
 }
 

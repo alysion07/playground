@@ -151,4 +151,13 @@ describe('tryTopple', () => {
     // Immediate retry should be blocked by cooldown.
     expect(tryTopple(slimes, 1100).toppled).toBe(false);
   });
+
+  it('does not topple when a newly spawned slime is airborne and far from the base', () => {
+    // Reproduces: slime 1 sitting on floor, user drops slime 2 at a different
+    // XZ → slime 2 flies out because the topple CoM check was treating the
+    // airborne drop as part of the stack.
+    const base = makeSlime({ id: 'base', pos: [0, 0.16, 0] });
+    const airborne = makeSlime({ id: 'air', pos: [1.0, 2.6, 1.0], ageSec: 0 });
+    expect(tryTopple([base, airborne], 1000).toppled).toBe(false);
+  });
 });
