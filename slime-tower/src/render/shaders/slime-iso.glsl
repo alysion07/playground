@@ -3,6 +3,15 @@ precision highp float;
 #ifndef MAX_SLIMES
 #define MAX_SLIMES 24
 #endif
+#ifndef MAX_RIPPLES
+#define MAX_RIPPLES 12
+#endif
+
+// Strand lifetime — keep in sync with physics3d.ts STRAND_LIFE_SEC.
+#define STRAND_LIFE 0.35
+// Ripple params — keep in sync with effects.ts RIPPLE_LIFE_SEC.
+#define RIPPLE_LIFE 1.0
+#define RIPPLE_SPEED 0.9
 
 uniform vec2 uResolution;
 uniform int uCount;
@@ -21,6 +30,11 @@ uniform float uRayPushback;
 uniform vec4 uSlimePos[MAX_SLIMES];
 uniform vec4 uSlimeRadii[MAX_SLIMES];
 uniform vec3 uSlimeColor[MAX_SLIMES];
+// Per-slime impact + strand: (impactSec, impactMag, strandIdx, strandSec).
+uniform vec4 uSlimeImpact[MAX_SLIMES];
+// Ripple ring buffer: (x, z, ageSec, mag). Only first uRippleCount slots are live.
+uniform vec4 uRipples[MAX_RIPPLES];
+uniform int uRippleCount;
 
 // Design tokens.
 uniform float uGridIntensity;
@@ -47,6 +61,15 @@ float sdEllipsoid(vec3 p, vec3 r) {
 float sdCapsule(vec3 p, float h, float rr) {
   p.y -= clamp(p.y, -h, h);
   return length(p) - rr;
+}
+
+// Capsule between arbitrary endpoints a and b with radius rr. Used by the
+// goo strand that stretches between two separating slimes along any axis.
+float sdCapsuleAB(vec3 p, vec3 a, vec3 b, float rr) {
+  vec3 pa = p - a;
+  vec3 ba = b - a;
+  float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+  return length(pa - ba * h) - rr;
 }
 
 float sdRoundBox(vec3 p, vec3 b, float rad) {
@@ -86,6 +109,7 @@ float birthScale(float birthT) {
 float sceneSDF(vec3 p) {
   float d = 1e6;
   int count = uCount;
+  float strandK = uMergeK * 2.0;
   for (int i = 0; i < MAX_SLIMES; i++) {
     if (i >= count) break;
     vec3 c = uSlimePos[i].xyz;
@@ -94,6 +118,23 @@ float sceneSDF(vec3 p) {
     int shape = int(uSlimeRadii[i].w + 0.5);
     float di = sdShape(shape, p - c, r);
     d = smin(d, di, uMergeK);
+
+    // Goo strand: while a just-separated pair is still young, thread a
+    // thinning capsule between this slime and its partner. One-sided union
+    // (only the lower-index side draws the strand) keeps k consistent.
+    float strandSec = uSlimeImpact[i].w;
+    int partnerIdx = int(uSlimeImpact[i].z + (uSlimeImpact[i].z >= 0.0 ? 0.5 : -0.5));
+    if (strandSec > 0.0 && strandSec < STRAND_LIFE && partnerIdx > i && partnerIdx < count) {
+      vec3 cp = uSlimePos[partnerIdx].xyz;
+      vec3 rp = uSlimeRadii[partnerIdx].xyz * birthScale(uSlimePos[partnerIdx].w);
+      float minR = min(min(r.x, r.y), min(r.z, min(rp.x, min(rp.y, rp.z))));
+      float t = strandSec / STRAND_LIFE;
+      float rr = minR * 0.45 * (1.0 - t);
+      if (rr > 0.003) {
+        float ds = sdCapsuleAB(p, c, cp, rr);
+        d = smin(d, ds, strandK);
+      }
+    }
   }
   return d;
 }
@@ -180,6 +221,25 @@ vec3 renderFloor(vec3 hitPos, float dist) {
   // Contact shadow under stacked slimes.
   float shadow = groundShadow(floorXZ);
   col *= 1.0 - shadow * 0.55;
+
+  // Impact ripples: expanding rings centred where slimes hit the floor.
+  // Each ripple emits a single thin annulus whose radius grows with age and
+  // whose intensity envelopes out over its lifetime.
+  for (int k = 0; k < MAX_RIPPLES; k++) {
+    if (k >= uRippleCount) break;
+    vec4 rp = uRipples[k];
+    float age = rp.z;
+    if (age <= 0.0 || age >= RIPPLE_LIFE) continue;
+    float R = age * RIPPLE_SPEED;
+    vec2 d2 = floorXZ - rp.xy;
+    float dist = length(d2);
+    float band = 0.06;
+    float ring = exp(-pow((dist - R) / band, 2.0));
+    float envelope = exp(-age / 0.45);
+    float intensity = ring * envelope * rp.w * 0.55;
+    vec3 rippleCol = mix(base, vec3(0.18, 0.45, 0.7), 0.9);
+    col = mix(col, rippleCol, clamp(intensity, 0.0, 0.9));
+  }
 
   // Drop preview: ring + centre dot marking where the next slime will land.
   if (uPreviewActive > 0.5) {

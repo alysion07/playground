@@ -11,6 +11,7 @@ import {
 import { SHAPE_INDEX } from '../state/types';
 import { step, towerHeight } from '../sim/physics3d';
 import { applySquish, computeLoads } from '../sim/support';
+import { getRipples, pushRipple, tickRipples } from '../sim/effects';
 import { CAMERA_CENTER, ORTHO_HALF_H } from '../render/camera';
 import { findMerge, tryTopple } from '../sim/rules';
 import { paletteBodyColor, randomRadius, resolveShape } from '../sim/slime';
@@ -43,7 +44,9 @@ export function startLoop(ctx: AppContext): () => void {
     const state = appStore.getState();
     const slimes = state.slimes;
 
-    step(dt, state.sim, slimes, WORLD);
+    const floorHits = step(dt, state.sim, slimes, WORLD);
+    for (const hit of floorHits) pushRipple(hit.x, hit.z, hit.mag);
+    tickRipples(dt);
 
     // Apply squish after physics — load is driven by current XZ positions.
     const loads = computeLoads(slimes);
@@ -171,6 +174,10 @@ function handlePointerDrop(ctx: AppContext): void {
     mass: (4 / 3) * Math.PI * radius * radius * radius,
     shape,
     ageSec: 0,
+    impactSec: 0,
+    impactMag: 0,
+    strandPartnerId: null,
+    strandSec: 0,
   };
   addSlime(slime);
 }
@@ -207,6 +214,11 @@ function uploadUniforms(ctx: AppContext): void {
   const posArr = u.uSlimePos.value;
   const radArr = u.uSlimeRadii.value;
   const colArr = u.uSlimeColor.value;
+  const impArr = u.uSlimeImpact.value;
+  // id → index map so we can resolve a strand partner in O(1) instead of
+  // rescanning the slime array per slot.
+  const idToIdx = new Map<string, number>();
+  for (let i = 0; i < slimes.length; i++) idToIdx.set(slimes[i].id, i);
   for (let i = 0; i < slimes.length; i++) {
     const s = slimes[i];
     // Pack birth progress (0→1 over BIRTH_DURATION) into posArr[i].w so the
@@ -217,5 +229,16 @@ function uploadUniforms(ctx: AppContext): void {
     // sphere / capsule / box / torus SDFs without another uniform array.
     radArr[i].set(s.radii[0], s.radii[1], s.radii[2], SHAPE_INDEX[s.shape]);
     colArr[i].set(s.color[0], s.color[1], s.color[2]);
+    const strandIdx =
+      s.strandPartnerId !== null ? (idToIdx.get(s.strandPartnerId) ?? -1) : -1;
+    impArr[i].set(s.impactSec, s.impactMag, strandIdx, s.strandSec);
   }
+
+  const ripples = getRipples();
+  const ripArr = u.uRipples.value;
+  for (let k = 0; k < ripples.length; k++) {
+    const r = ripples[k];
+    ripArr[k].set(r.x, r.z, r.ageSec, r.mag);
+  }
+  u.uRippleCount.value = ripples.length;
 }

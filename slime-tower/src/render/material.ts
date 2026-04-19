@@ -1,6 +1,7 @@
 import { ShaderMaterial, Vector2, Vector3, Vector4 } from 'three';
 import slimeIsoGLSL from './shaders/slime-iso.glsl?raw';
 import { MAX_SLIMES } from '../state/store';
+import { MAX_RIPPLES } from '../sim/effects';
 
 export type SlimeUniforms = {
   uResolution: { value: Vector2 };
@@ -16,6 +17,12 @@ export type SlimeUniforms = {
   uSlimePos: { value: Vector4[] };
   uSlimeRadii: { value: Vector4[] };
   uSlimeColor: { value: Vector3[] };
+  // Per-slime impact + strand packet: (impactSec, impactMag, strandIdx, strandSec).
+  // strandIdx is the other slime's index in uSlimePos, or -1 if no strand.
+  uSlimeImpact: { value: Vector4[] };
+  // Ripple ring buffer: (x, z, ageSec, mag). uRippleCount entries are live.
+  uRipples: { value: Vector4[] };
+  uRippleCount: { value: number };
   uGridIntensity: { value: number };
   uGlassRim: { value: number };
   uSssDensity: { value: number };
@@ -65,6 +72,9 @@ export function createSlimeMaterial(): SlimeMaterialBundle {
     uSlimePos: { value: makeVec4Array(MAX_SLIMES) },
     uSlimeRadii: { value: makeVec4Array(MAX_SLIMES) },
     uSlimeColor: { value: makeVec3Array(MAX_SLIMES) },
+    uSlimeImpact: { value: makeVec4Array(MAX_SLIMES) },
+    uRipples: { value: makeVec4Array(MAX_RIPPLES) },
+    uRippleCount: { value: 0 },
     uGridIntensity: { value: 0.35 },
     uGlassRim: { value: 0.55 },
     uSssDensity: { value: 0.45 },
@@ -78,7 +88,7 @@ export function createSlimeMaterial(): SlimeMaterialBundle {
     uniforms: uniforms as unknown as Record<string, { value: unknown }>,
     vertexShader: VERTEX_GLSL,
     fragmentShader: slimeIsoGLSL,
-    defines: { MAX_SLIMES: String(MAX_SLIMES) },
+    defines: { MAX_SLIMES: String(MAX_SLIMES), MAX_RIPPLES: String(MAX_RIPPLES) },
     depthTest: false,
     depthWrite: false,
     transparent: false,

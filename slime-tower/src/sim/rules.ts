@@ -2,7 +2,7 @@ import type { SimParams, Slime } from '../state/types';
 import { combinedRadius } from './slime';
 import { speed } from './physics3d';
 import { colorsApproxEqual } from '../util/color';
-import { findFloorContacts } from './support';
+import { findFloorContacts, IMPACT_AMPLITUDE } from './support';
 
 // Settle threshold — slimes merge only once both are moving slowly, so the
 // animation reads as "sat for a beat, then fused" rather than "popped in
@@ -171,31 +171,38 @@ export function _resetToppleState(): void {
 }
 
 function merge(a: Slime, b: Slime): Slime {
-  // Merge the undeformed spheres so squish recomputes cleanly next frame.
   const r = combinedRadius(a.baseRadius, b.baseRadius);
   const mA = a.mass;
   const mB = b.mass;
   const mTot = mA + mB;
-  // Mass-weighted XZ centroid. Y is anchored to the lower of the two rest
-  // heights so the merged slime doesn't clip into the floor and bounce out.
   const cx = (a.pos[0] * mA + b.pos[0] * mB) / mTot;
   const cz = (a.pos[2] * mA + b.pos[2] * mB) / mTot;
-  const lowerY = Math.min(a.pos[1], b.pos[1]);
-  // If either parent was on/near the floor, seat the merged sphere on top of
-  // the floor using its own new radius. Otherwise keep the lower Y.
-  const cy = Math.max(lowerY, r + 1e-3);
+  // Birth the merged slime pre-squished so the volume pop reads as a landing
+  // impact instead of a teleport. Matches applySquish at impactSec=0,
+  // impactMag=1: ry shrinks by IMPACT_AMPLITUDE, rx/rz expand to preserve
+  // volume. The damped-osc pulse then wobbles it up to sphere over ~0.4s.
+  const initialC = 1 - IMPACT_AMPLITUDE;
+  const ryInit = r * initialC;
+  const rxzInit = r * Math.sqrt(1 / initialC);
+  // Seat the squished disc so its bottom aligns with the lower parent's
+  // bottom (or the floor, whichever is higher). Using ryInit here — not r —
+  // is the whole point: a full-r clamp would hoist the disc into mid-air.
+  const aBottom = a.pos[1] - a.baseRadius;
+  const bBottom = b.pos[1] - b.baseRadius;
+  const cy = Math.max(Math.min(aBottom, bBottom) + ryInit, ryInit + 1e-3);
   return {
     id: `${a.id}+${b.id}`,
     pos: [cx, cy, cz],
-    // Zero inherited velocity — stops the "pop out of the floor" bounce.
     prev: [cx, cy, cz],
-    radii: [r, r, r],
+    radii: [rxzInit, ryInit, rxzInit],
     baseRadius: r,
     color: [a.color[0], a.color[1], a.color[2]],
     mass: mTot,
-    // Merged shape defaults to sphere — combining arbitrary shapes is
-    // ambiguous, and the volume-preserving sphere is the natural fallback.
     shape: 'sphere',
     ageSec: 0,
+    impactSec: 0,
+    impactMag: 1,
+    strandPartnerId: null,
+    strandSec: 0,
   };
 }

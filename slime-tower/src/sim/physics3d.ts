@@ -7,17 +7,98 @@ const FIXED_DT = 1 / 120;
 const FLOOR_RESTITUTION = 0.3;
 const WALL_RESTITUTION = 0.5;
 
+// --- Impact + strand tuning -------------------------------------------------
+// Ignore closing normal velocities below this — grazing re-contact shouldn't
+// re-trigger a squash pulse on already-settled stacks.
+const IMPACT_VN_MIN = 0.003;
+// Normalising speed: vN of this magnitude maps to impactMag = 1.
+const IMPACT_VN_NORM = 0.03;
+// After this many seconds the impact pulse has decayed below audibility, so we
+// zero the magnitude to avoid residual tiny squish once the slime is idle.
+const IMPACT_DURATION_SEC = 0.6;
+// Strand lifetime. Matches shader STRAND_LIFE.
+const STRAND_LIFE_SEC = 0.35;
+
+export type FloorHit = { x: number; z: number; mag: number };
+
+// Pair keys of slimes that were in contact last frame. Used to detect the
+// "just separated" moment which starts a goo strand.
+const lastContactPairs = new Set<string>();
+let currentContactPairs: Set<string> = new Set();
+
+function pairKey(a: Slime, b: Slime): string {
+  return a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+}
+
+// Test hook — clears the contact-pair memory so tests don't leak state.
+export function _resetContactState(): void {
+  lastContactPairs.clear();
+  currentContactPairs = new Set();
+}
+
 // Advance physics by wall-clock dt. Mutates slimes in place.
-export function step(dtSeconds: number, sim: SimParams, slimes: Slime[], bounds: Bounds3): void {
-  if (slimes.length === 0 || dtSeconds <= 0) return;
+// Returns floor-hit events for this frame so caller can spawn ripples.
+export function step(
+  dtSeconds: number,
+  sim: SimParams,
+  slimes: Slime[],
+  bounds: Bounds3,
+): FloorHit[] {
+  const hits: FloorHit[] = [];
+  if (slimes.length === 0 || dtSeconds <= 0) return hits;
   const scaled = dtSeconds * Math.max(0, sim.timeScale);
   const steps = Math.min(MAX_SUBSTEPS, Math.max(1, Math.ceil(scaled / FIXED_DT)));
   const h = scaled / steps;
-  for (let s = 0; s < steps; s++) substep(h, sim, slimes, bounds);
-  for (const sl of slimes) sl.ageSec += dtSeconds;
+  for (let s = 0; s < steps; s++) substep(h, sim, slimes, bounds, hits);
+
+  // Integrate impact/strand timers and expire stale ones.
+  for (const sl of slimes) {
+    sl.ageSec += dtSeconds;
+    if (sl.impactMag > 0) {
+      sl.impactSec += dtSeconds;
+      if (sl.impactSec > IMPACT_DURATION_SEC) {
+        sl.impactMag = 0;
+        sl.impactSec = 0;
+      }
+    }
+    if (sl.strandPartnerId !== null) {
+      sl.strandSec += dtSeconds;
+      if (sl.strandSec > STRAND_LIFE_SEC) {
+        sl.strandPartnerId = null;
+        sl.strandSec = 0;
+      }
+    }
+  }
+
+  // Strand activation: any pair that was touching last frame but not this
+  // frame just separated — kick off a strand on both sides.
+  const present = new Set(slimes.map((s) => s.id));
+  for (const key of lastContactPairs) {
+    if (currentContactPairs.has(key)) continue;
+    const [idA, idB] = key.split('|');
+    if (!present.has(idA) || !present.has(idB)) continue;
+    const a = slimes.find((s) => s.id === idA);
+    const b = slimes.find((s) => s.id === idB);
+    if (!a || !b) continue;
+    a.strandPartnerId = b.id;
+    a.strandSec = 0;
+    b.strandPartnerId = a.id;
+    b.strandSec = 0;
+  }
+  lastContactPairs.clear();
+  for (const k of currentContactPairs) lastContactPairs.add(k);
+  currentContactPairs.clear();
+
+  return hits;
 }
 
-function substep(h: number, sim: SimParams, slimes: Slime[], bounds: Bounds3): void {
+function substep(
+  h: number,
+  sim: SimParams,
+  slimes: Slime[],
+  bounds: Bounds3,
+  hits: FloorHit[],
+): void {
   const n = slimes.length;
 
   // Verlet position update with velocity damping.
@@ -50,7 +131,7 @@ function substep(h: number, sim: SimParams, slimes: Slime[], bounds: Bounds3): v
   }
 
   // World bounds.
-  for (let i = 0; i < n; i++) clampToBounds(slimes[i], bounds);
+  for (let i = 0; i < n; i++) clampToBounds(slimes[i], bounds, hits);
 }
 
 // Position correction runs with full prev-follow so the separation itself
@@ -78,6 +159,10 @@ function separate(a: Slime, b: Slime): void {
   const d2 = dx * dx + dy * dy + dz * dz;
   const rSum = ra + rb;
   if (d2 >= rSum * rSum || d2 < 1e-12) return;
+
+  // Contact bookkeeping: used by step() to detect the just-separated moment
+  // that kicks off a goo strand. Cheap — Set of string keys.
+  currentContactPairs.add(pairKey(a, b));
   const d = Math.sqrt(d2);
   const overlap = Math.min(rSum - d, MAX_CORRECTION_PER_SUBSTEP);
   // Grounded slimes anchor the stack — effective mass goes way up so upper
@@ -121,6 +206,23 @@ function separate(a: Slime, b: Slime): void {
   // contact. Glancing contacts (vN ≥ 0) leave velocities untouched so a
   // slime that merely brushes past another does not get a phantom kick.
   if (vN >= 0) return;
+
+  // Impact pulse trigger: a meaningful closing velocity stamps both slimes
+  // with a fresh squish so they wobble on contact. Taking max against the
+  // existing magnitude means a weak late contact doesn't clobber an active
+  // pulse from a harder hit.
+  const vNAbs = -vN;
+  if (vNAbs > IMPACT_VN_MIN) {
+    const mag = Math.min(1, vNAbs / IMPACT_VN_NORM);
+    if (mag > a.impactMag) {
+      a.impactMag = mag;
+      a.impactSec = 0;
+    }
+    if (mag > b.impactMag) {
+      b.impactMag = mag;
+      b.impactSec = 0;
+    }
+  }
 
   const impulse = -vN * NORMAL_VEL_DAMP;
   const impA = impulse * wA;
@@ -248,7 +350,7 @@ function reflectAxis(
   return [newPos, newPrev];
 }
 
-function clampToBounds(s: Slime, bounds: Bounds3): void {
+function clampToBounds(s: Slime, bounds: Bounds3, hits: FloorHit[]): void {
   const rx = s.radii[0];
   const ry = s.radii[1];
   const rz = s.radii[2];
@@ -261,6 +363,18 @@ function clampToBounds(s: Slime, bounds: Bounds3): void {
     if (overshoot > TELEPORT_THRESHOLD || !wasIn) {
       s.prev[1] = ry;
     } else {
+      // Closing speed on the floor — same units as the pair impact trigger.
+      const vyClosing = s.prev[1] - s.pos[1];
+      if (vyClosing > IMPACT_VN_MIN) {
+        const mag = Math.min(1, vyClosing / IMPACT_VN_NORM);
+        if (mag > s.impactMag) {
+          s.impactMag = mag;
+          s.impactSec = 0;
+        }
+        // Only ripple on meaningful hits so a settled slime doesn't spam
+        // ringlets each substep as the bounce dies out.
+        if (mag > 0.15) hits.push({ x: s.pos[0], z: s.pos[2], mag });
+      }
       const vy = s.pos[1] - s.prev[1];
       s.prev[1] = s.pos[1] + vy * FLOOR_RESTITUTION;
     }

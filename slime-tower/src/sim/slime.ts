@@ -32,6 +32,10 @@ export function createSlime(pos: Vec3, options: DropOptions = {}): Slime {
     mass: (4 / 3) * Math.PI * r * r * r,
     shape: 'sphere',
     ageSec: 0,
+    impactSec: 0,
+    impactMag: 0,
+    strandPartnerId: null,
+    strandSec: 0,
   };
 }
 

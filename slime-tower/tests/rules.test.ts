@@ -31,6 +31,10 @@ function makeSlime(partial: Partial<Slime> & { id: string; pos: [number, number,
     shape: partial.shape ?? 'sphere',
     // Default to "mature" so merge tests don't have to set this explicitly.
     ageSec: partial.ageSec ?? MERGE_MIN_AGE_SEC + 0.1,
+    impactSec: partial.impactSec ?? 0,
+    impactMag: partial.impactMag ?? 0,
+    strandPartnerId: partial.strandPartnerId ?? null,
+    strandSec: partial.strandSec ?? 0,
   };
 }
 
@@ -54,6 +58,24 @@ describe('findMerge', () => {
     const a = makeSlime({ id: 'a', pos: [0, 0.16, 0], color: [1, 0, 0] });
     const b = makeSlime({ id: 'b', pos: [0.1, 0.16, 0], color: [0, 0, 1] });
     expect(findMerge(sim, [a, b])).toBeNull();
+  });
+
+  it('births the merged slime pre-squished and stamps an impact pulse', () => {
+    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0] });
+    const b = makeSlime({ id: 'b', pos: [0.1, 0.16, 0] });
+    const effect = findMerge(sim, [a, b])!;
+    const merged = effect.added;
+    // Impact pulse fires at birth, driving the wobble from disc → sphere.
+    expect(merged.impactMag).toBe(1);
+    expect(merged.impactSec).toBe(0);
+    // Initial shape is a disc: ry < baseRadius, rx/rz > baseRadius.
+    expect(merged.radii[1]).toBeLessThan(merged.baseRadius);
+    expect(merged.radii[0]).toBeGreaterThan(merged.baseRadius);
+    // Volume-preserving against baseRadius (matches applySquish invariant).
+    const vol = merged.radii[0] * merged.radii[1] * merged.radii[2];
+    expect(vol).toBeCloseTo(merged.baseRadius ** 3, 5);
+    // Bottom of the squished disc should be at/above floor (no clipping).
+    expect(merged.pos[1] - merged.radii[1]).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -124,6 +146,26 @@ describe('applySquish', () => {
       const baseVol = s.baseRadius ** 3;
       expect(vol).toBeCloseTo(baseVol, 5);
     }
+  });
+
+  it('impact pulse pushes ry below the unloaded baseline', () => {
+    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0], impactMag: 1, impactSec: 0 });
+    applySquish([a], new Float32Array([0]));
+    expect(a.radii[1]).toBeLessThan(a.baseRadius);
+  });
+
+  it('impact pulse volume-preserves mid-wobble', () => {
+    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0], impactMag: 1, impactSec: 0 });
+    applySquish([a], new Float32Array([0]));
+    const vol = a.radii[0] * a.radii[1] * a.radii[2];
+    expect(vol).toBeCloseTo(a.baseRadius ** 3, 5);
+  });
+
+  it('impact pulse decays — far-future t approaches unloaded radii', () => {
+    const a = makeSlime({ id: 'a', pos: [0, 0.16, 0], impactMag: 1, impactSec: 2.0 });
+    applySquish([a], new Float32Array([0]));
+    // exp(-2/0.12) ≈ 1e-7 → negligible pulse, so ry ≈ baseRadius.
+    expect(Math.abs(a.radii[1] - a.baseRadius)).toBeLessThan(1e-4);
   });
 });
 

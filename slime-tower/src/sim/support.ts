@@ -9,6 +9,13 @@ export const MIN_COMPRESSION = 0.55;
 // XZ footprint margin for "above me" check. Slightly generous so stacked
 // slimes count as supported even if slightly offset.
 const FOOTPRINT_FACTOR = 1.05;
+
+// Impact squish pulse parameters. The pulse is a damped cosine on top of the
+// load-driven compression: ry gets pushed further down and then rebounds ~2
+// cycles before settling. Volume-preserving via the same sqrt(1/c) expand.
+export const IMPACT_AMPLITUDE = 0.35; // max fractional ry deflection
+const IMPACT_OMEGA = (2 * Math.PI) / 0.18; // ≈ 35 rad/s
+const IMPACT_TAU = 0.12; // envelope decay (s)
 // How close (world units) a slime above needs its bottom edge to our top
 // edge to count as "in contact". Without this, airborne drops squish the
 // stack the instant they spawn.
@@ -58,12 +65,28 @@ export function computeLoads(slimes: Slime[]): Float32Array {
 
 // In-place radii update from (baseRadius, load). Preserves volume:
 // V = (4/3)π rx ry rz with rx = rz = base * sqrt(1/c), ry = base * c.
+//
+// When a slime has an active impact (impactMag > 0), an additional damped
+// cosine pulse modulates the compression. The pulse multiplies (1 - amp*osc)
+// into ry, and rx/rz expand by sqrt(1/ry_factor) so volume is preserved
+// continuously through the wobble.
 export function applySquish(slimes: Slime[], loads: Float32Array): void {
   const n = slimes.length;
   for (let i = 0; i < n; i++) {
     const s = slimes[i];
     const loadRatio = loads[i] / Math.max(s.mass, 1e-4);
-    const compression = Math.max(MIN_COMPRESSION, 1 / (1 + SQUISH_K * loadRatio));
+    const baseC = Math.max(MIN_COMPRESSION, 1 / (1 + SQUISH_K * loadRatio));
+
+    let compression = baseC;
+    if (s.impactMag > 0) {
+      const t = s.impactSec;
+      const env = Math.exp(-t / IMPACT_TAU);
+      const osc = Math.cos(IMPACT_OMEGA * t);
+      // osc=1 at t=0 → maximum squish on contact; amplitude scales with mag.
+      const pulse = s.impactMag * env * osc * IMPACT_AMPLITUDE;
+      compression = Math.max(MIN_COMPRESSION * 0.7, baseC * (1 - pulse));
+    }
+
     const expand = Math.sqrt(1 / compression);
     s.radii[0] = s.baseRadius * expand;
     s.radii[1] = s.baseRadius * compression;

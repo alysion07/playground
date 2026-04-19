@@ -29,6 +29,17 @@ export type Slime = {
   shape: ShapeKind;
   // Wall-clock seconds since spawn. Used for merge-cooldown and drop animation.
   ageSec: number;
+  // Seconds since the last impact (floor hit or closing pair contact). Drives
+  // the damped-osc squish pulse in applySquish. 0 on the frame of impact.
+  impactSec: number;
+  // Normalised impact strength 0..1. Decays to 0 after IMPACT_DURATION so the
+  // shader/squish layer can idle.
+  impactMag: number;
+  // Partner slime id for active goo strand, or null if no strand. Set on the
+  // first frame a contacting pair separates.
+  strandPartnerId: string | null;
+  // Seconds since strand started. Shader fades strand thickness to 0 at STRAND_LIFE.
+  strandSec: number;
 };
 
 export type ModeName = 'zen' | 'tower' | 'vessel';
