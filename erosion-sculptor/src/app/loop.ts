@@ -64,9 +64,7 @@ export function startLoop(ctx: AppContext): () => void {
         // fullscreen-triangle setup and do a standard MVP transform.
         const aspect = ctx.resolution.width / Math.max(ctx.resolution.height, 1);
         const viewProj = computeViewProj(basis, aspect);
-        // Reuse the existing wireframe toggle: in mesh mode it now drives the
-        // barycentric triangle-edge overlay on top of the lit surface.
-        ctx.meshPipeline.writeCam(viewProj, basis.ro, state.render.wireframe ? 1 : 0);
+        ctx.meshPipeline.writeCam(viewProj, basis.ro);
         const depthView = ctx.meshPipeline.ensureDepth(
           ctx.resolution.width,
           ctx.resolution.height,
@@ -85,7 +83,13 @@ export function startLoop(ctx: AppContext): () => void {
         // count. Visually that's a few frames of stale indices before the
         // store catches up — acceptable at user-driven cadence.
         if (state.mesh.indexCount > 0) {
-          pass.setPipeline(ctx.meshPipeline.pipeline);
+          // Wireframe toggle picks the X-ray wire pipeline (no depth test,
+          // no cull, edges-only). Same vertex buffer + bind group as the lit
+          // path, so it's a drop-in swap.
+          const pipeline = state.render.wireframe
+            ? ctx.meshPipeline.wirePipeline
+            : ctx.meshPipeline.pipeline;
+          pass.setPipeline(pipeline);
           pass.setBindGroup(0, ctx.meshPipeline.bindGroup);
           pass.setVertexBuffer(0, ctx.mcPass.verts);
           pass.setIndexBuffer(ctx.mcPass.indices, 'uint32');

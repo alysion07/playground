@@ -15,7 +15,12 @@ const MESH_CAM_SIZE = 80;
 // index buffers borrowed from `McPass` at draw time.
 export class MeshPipeline {
   private device: GPUDevice;
+  // Lit surface path: depth-tested, back-face culled, Lambert + triplanar.
   pipeline: GPURenderPipeline;
+  // X-ray wireframe path: no depth test, no back-face cull, fragment discards
+  // everything except triangle edges. Both pipelines share vs_main + the same
+  // bind group, so switching between them is a single setPipeline call.
+  wirePipeline: GPURenderPipeline;
   bindGroup: GPUBindGroup;
 
   private bgl: GPUBindGroupLayout;
@@ -65,24 +70,23 @@ export class MeshPipeline {
     });
 
     const module = device.createShaderModule({ label: 'lit-mesh', code: litMeshTemplate });
-    this.pipeline = device.createRenderPipeline({
-      label: 'mesh-pipeline',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [this.bgl] }),
-      vertex: {
-        module,
-        entryPoint: 'vs_main',
-        // Vertex buffer layout mirrors march.wgsl's Vertex struct:
-        // pos(vec3) + pad + normal(vec3) + pad, stride 32.
-        buffers: [
-          {
-            arrayStride: 32,
-            attributes: [
-              { shaderLocation: 0, offset: 0, format: 'float32x3' },
-              { shaderLocation: 1, offset: 16, format: 'float32x3' },
-            ],
-          },
+    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [this.bgl] });
+    // Vertex buffer layout mirrors march.wgsl's Vertex struct:
+    // pos(vec3) + pad + normal(vec3) + pad, stride 32. Both pipelines
+    // consume the same MC output, so the layout is shared.
+    const vertexBuffers: GPUVertexBufferLayout[] = [
+      {
+        arrayStride: 32,
+        attributes: [
+          { shaderLocation: 0, offset: 0, format: 'float32x3' },
+          { shaderLocation: 1, offset: 16, format: 'float32x3' },
         ],
       },
+    ];
+    this.pipeline = device.createRenderPipeline({
+      label: 'mesh-pipeline',
+      layout: pipelineLayout,
+      vertex: { module, entryPoint: 'vs_main', buffers: vertexBuffers },
       fragment: {
         module,
         entryPoint: 'fs_main',
@@ -98,18 +102,40 @@ export class MeshPipeline {
         depthCompare: 'less',
       },
     });
+
+    // Wireframe pipeline: same vertex stage but `fs_wire` discards everything
+    // except the edge AA band. `cullMode: 'none'` keeps back faces in, and
+    // `depthCompare: 'always'` + `depthWriteEnabled: false` makes edges from
+    // deep inside the mesh show through the front-facing cage without being
+    // masked by closer triangles. Result is the CAD-style X-ray wire look.
+    this.wirePipeline = device.createRenderPipeline({
+      label: 'mesh-wire-pipeline',
+      layout: pipelineLayout,
+      vertex: { module, entryPoint: 'vs_main', buffers: vertexBuffers },
+      fragment: {
+        module,
+        entryPoint: 'fs_wire',
+        targets: [{ format }],
+      },
+      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      depthStencil: {
+        format: 'depth24plus',
+        depthWriteEnabled: false,
+        depthCompare: 'always',
+      },
+    });
   }
 
-  // Pack the camera + wireframe toggle into the uniform buffer. `viewProj` is
-  // column-major 16 floats; `ro` is the world-space camera origin for rim
-  // shading; `wireframe` ∈ {0,1} enables the barycentric triangle-edge
-  // overlay in the fragment shader.
-  writeCam(viewProj: Float32Array, ro: [number, number, number], wireframe: number): void {
+  // Pack the camera into the uniform buffer. `viewProj` is column-major
+  // 16 floats; `ro` is the world-space camera origin for rim shading. The
+  // wire vs lit choice is a pipeline switch, not a uniform branch, so the
+  // camera struct has no mode bit.
+  writeCam(viewProj: Float32Array, ro: [number, number, number]): void {
     this.camScratch.set(viewProj, 0);
     this.camScratch[16] = ro[0];
     this.camScratch[17] = ro[1];
     this.camScratch[18] = ro[2];
-    this.camScratch[19] = wireframe;
+    this.camScratch[19] = 0;
     this.device.queue.writeBuffer(
       this.camBuffer,
       0,

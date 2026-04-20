@@ -11,11 +11,7 @@
 struct MeshCamU {
   viewProj: mat4x4<f32>,
   ro: vec3<f32>,
-  // Wireframe toggle: 0 = lit surface only, 1 = overlay triangle edges on the
-  // lit shading. Reuses the trailing pad slot so the uniform buffer stays
-  // 80 bytes. Float (not bool) so the fragment can mix fractionally without
-  // branching, keeping dpdx/dpdy uniformity trivially valid.
-  wireframe: f32,
+  _pad: f32,
 };
 
 // Matches WindU in raymarch.wgsl byte-for-byte so the same uniform buffer
@@ -154,16 +150,27 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
 
   let lit = base * (ambient + ndl * vec3<f32>(0.95, 0.92, 0.85));
   let rim = pow(1.0 - max(dot(n, viewDir), 0.0), 3.0) * 0.22;
-  let surface = lit + vec3<f32>(rim);
+  return vec4<f32>(lit + vec3<f32>(rim), 1.0);
+}
 
-  // Triangle wireframe via distance-to-nearest-edge in barycentric space.
-  // `fwidth` gives the per-pixel magnitude of bary's change, which we use as
-  // the smoothstep width so the line thickness stays ≈1.5 pixels at any zoom
-  // level. U.wireframe ∈ {0,1} gates the overlay without a branch.
+// X-ray wireframe: only the edges are rendered, everything else is discarded.
+// Used with a separate pipeline that disables depth-test + back-face culling
+// so edges from both front and back faces show through simultaneously, which
+// is the classic CAD/modeler look the user asked for. Barycentric is
+// synthesized in vs_main via @builtin(vertex_index) % 3, so the fragment
+// just reads `in.bary` — no extra vertex attribute needed.
+@fragment
+fn fs_wire(in: VsOut) -> @location(0) vec4<f32> {
   let e = min(in.bary.x, min(in.bary.y, in.bary.z));
   let aa = fwidth(e) * 1.5;
-  let wire = 1.0 - smoothstep(0.0, aa, e);
-  let wireColor = vec3<f32>(0.06, 0.06, 0.08);
-  let final = mix(surface, wireColor, U.wireframe * wire);
-  return vec4<f32>(final, 1.0);
+  let edge = 1.0 - smoothstep(0.0, aa, e);
+  // Tiny threshold lets the edge-AA tail taper off cleanly instead of painting
+  // a faint wash across every triangle interior. Below that, fragment is not
+  // a line → drop it so the background (clear color) shows through.
+  if (edge < 0.04) { discard; }
+  // Light cyan against the near-black clear matches the reference aesthetic.
+  // Premultiply edge strength so AA'd pixels dim toward the tail rather than
+  // clipping hard at the threshold.
+  let wireColor = vec3<f32>(0.70, 0.88, 0.98);
+  return vec4<f32>(wireColor * edge, 1.0);
 }
