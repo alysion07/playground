@@ -60,6 +60,25 @@
           ),
           linear-gradient(180deg, #1a2030 0%, #101420 100%);
       }
+      .erosion-mask {
+        background:
+          radial-gradient(
+            circle at 30% 30%,
+            rgba(200, 160, 120, 0.45),
+            transparent 45%
+          ),
+          radial-gradient(
+            circle at 70% 70%,
+            rgba(120, 100, 80, 0.5),
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 50% 50%,
+            rgba(230, 200, 160, 0.25),
+            transparent 60%
+          ),
+          linear-gradient(180deg, #2a221a 0%, #1a1410 100%);
+      }
     </style>
   </head>
   <body class="min-h-screen bg-[#0a0a0f] text-neutral-100 antialiased">
@@ -124,6 +143,26 @@
               <h3 class="text-lg font-medium">Slime Tower</h3>
               <p class="mt-1 text-sm text-neutral-400">
                 아이소메트릭 유리 슬라임 쌓기. SDF 레이마칭·CSG 합체·그리드 바닥.
+              </p>
+            </div>
+          </a>
+
+          <!-- Erosion Sculptor -->
+          <a
+            href="/erosion/"
+            class="card group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur"
+          >
+            <div class="erosion-mask relative aspect-[16/10] overflow-hidden">
+              <div class="absolute inset-0 flex items-end p-5">
+                <span class="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-mono text-white/80">
+                  w1
+                </span>
+              </div>
+            </div>
+            <div class="flex-1 p-5">
+              <h3 class="text-lg font-medium">Erosion Sculptor</h3>
+              <p class="mt-1 text-sm text-neutral-400">
+                CSG로 쌓고 시간으로 깎는 WebGPU 침식 조각가. Week 1: SDF 프리뷰.
               </p>
             </div>
           </a>

@@ -25,6 +25,11 @@ const TOYS = [
     dir: 'slime-tower',
     base: '/slime/',
   },
+  {
+    name: 'erosion',
+    dir: 'erosion-sculptor',
+    base: '/erosion/',
+  },
 ];
 
 function log(msg) {
