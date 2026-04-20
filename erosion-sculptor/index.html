@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Erosion Sculptor</title>
+  </head>
+  <body class="bg-[#0a0a0f] text-white">
+    <canvas id="gl"></canvas>
+    <div
+      id="fps"
+      class="fixed top-2 left-2 font-mono text-xs text-white/70 bg-black/40 px-2 py-1 rounded pointer-events-none select-none"
+    >
+      fps: —
+    </div>
+    <div id="panel" class="fixed top-2 right-2 w-72 max-h-[calc(100vh-1rem)] overflow-y-auto"></div>
+    <div
+      id="unsupported"
+      class="fixed inset-0 hidden flex-col items-center justify-center gap-3 bg-[#0a0a0f] text-center px-6"
+    >
+      <h1 class="text-2xl font-semibold">WebGPU 미지원 브라우저</h1>
+      <p class="text-sm text-neutral-400 max-w-md">
+        Erosion Sculptor는 WebGPU 전용입니다. Chrome / Edge 113+ 또는 Firefox Nightly에서 열어주세요.
+      </p>
+      <a
+        href="/"
+        class="mt-2 text-xs underline underline-offset-4 decoration-neutral-600 hover:decoration-neutral-300"
+      >
+        ← 갤러리로
+      </a>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
