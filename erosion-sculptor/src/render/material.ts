@@ -151,7 +151,8 @@ export class RaymarchMaterial {
     });
     this.erodeBuffer = device.createBuffer({
       label: 'erode-uniforms',
-      size: 16,
+      // 32 bytes: alpha, dt, beta, windNoise, windDir.xyz, _pad
+      size: 32,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     const erodeModule = device.createShaderModule({
@@ -308,11 +309,23 @@ export class RaymarchMaterial {
 
   // Run one explicit-Euler PDE substep. The caller is responsible for clamping
   // dt to the CFL bound; this method just dispatches with the supplied values.
+  // beta=0 + any windDir recovers the Week 2 pure-curvature behavior, letting
+  // the scheduler call this unconditionally without a separate code path.
   // After return, `volume.currentIndex` points to the freshly written side and
   // the raymarch bind group will sample from it on the next frame.
-  runErodeStep(encoder: GPUCommandEncoder, alpha: number, dt: number): void {
+  runErodeStep(
+    encoder: GPUCommandEncoder,
+    alpha: number,
+    dt: number,
+    beta: number,
+    windNoise: number,
+    windDir: [number, number, number],
+  ): void {
     if (!this.erodePipeline || !this.erodeBindGroups || !this.volume) return;
-    const u = new Float32Array([alpha, dt, 0, 0]);
+    const u = new Float32Array([
+      alpha, dt, beta, windNoise,
+      windDir[0], windDir[1], windDir[2], 0,
+    ]);
     this.device.queue.writeBuffer(this.erodeBuffer, 0, u.buffer, u.byteOffset, u.byteLength);
     const N = this.volume.size;
     const wg = Math.ceil(N / 4);

@@ -3,7 +3,7 @@
 // in the store so UI, scheduler, and telemetry stay in sync.
 
 import type { RaymarchMaterial } from '../render/material';
-import { appStore, resetPdeProgress, setPde } from '../state/store';
+import { appStore, resetPdeProgress, setPde, windDirVector } from '../state/store';
 
 // CFL upper bound for explicit-Euler curvature flow on a 3D regular grid:
 // dt < h² / (3α). The actual nonlinear gradMag-weighted update slightly
@@ -35,15 +35,19 @@ export function tickPde(material: RaymarchMaterial, encoder: GPUCommandEncoder):
   if (!material.volume) return 0;
   const state = appStore.getState();
   const pde = state.pde;
+  const wind = state.wind;
   const voxelSize = material.volume.voxelSize;
   const dt = clampDt(pde.dt, voxelSize, pde.alpha);
+  // Convert (yaw, elevation) once per frame — the shader consumes the vector
+  // form, and all substeps within a frame share the same wind.
+  const windDir = windDirVector(wind);
 
   let total = 0;
   const t0 = performance.now();
 
   if (pde.pendingSingleSteps > 0) {
     for (let i = 0; i < pde.pendingSingleSteps; i++) {
-      material.runErodeStep(encoder, pde.alpha, dt);
+      material.runErodeStep(encoder, pde.alpha, dt, wind.beta, wind.noise, windDir);
     }
     total += pde.pendingSingleSteps;
   }
@@ -51,7 +55,7 @@ export function tickPde(material: RaymarchMaterial, encoder: GPUCommandEncoder):
   if (pde.playing) {
     const stepsPerFrame = Math.max(1, Math.floor(pde.stepsPerFrame));
     for (let i = 0; i < stepsPerFrame; i++) {
-      material.runErodeStep(encoder, pde.alpha, dt);
+      material.runErodeStep(encoder, pde.alpha, dt, wind.beta, wind.noise, windDir);
     }
     total += stepsPerFrame;
   }
