@@ -36,6 +36,14 @@ export type CameraState = {
   dist: number;
 };
 
+// Active output pipeline. `raymarch` renders the fullscreen SDF preview
+// against the live ψ; `mesh` rasterizes the MC-extracted vertex/index buffers
+// with lit shading. The two modes are exclusive — depth-compositing them
+// would require writing `@builtin(frag_depth)` from raymarch, which is
+// planned for v2. Erosion continues in the background either way; the mesh
+// is a static snapshot of whatever was in ψ at the last Rebuild press.
+export type RenderMode = 'raymarch' | 'mesh';
+
 export type RenderParams = {
   // Maximum raymarch steps per pixel. Higher = sharper silhouettes, lower fps.
   stepBudget: number;
@@ -43,6 +51,9 @@ export type RenderParams = {
   // True wireframe needs marching cubes (Week 3) — this approximates it via
   // screen-space derivatives.
   wireframe: boolean;
+  // Which output pipeline runs this frame. `raymarch` is the live preview;
+  // `mesh` draws the MC-extracted mesh from the last Rebuild.
+  mode: RenderMode;
 };
 
 export type PerformanceParams = {

@@ -40,9 +40,19 @@ export function mountCsgBuilder(host: HTMLElement): () => void {
     // --- top-level controls
     const top = pane.addFolder({ title: 'Render' });
     const renderBag = {
+      mode: state.render.mode,
       stepBudget: state.render.stepBudget,
       wireframe: state.render.wireframe,
     };
+    // Mode radio: raymarch is the live SDF preview; mesh draws the MC output.
+    // v1 is exclusive — switching to mesh assumes the user has clicked Rebuild
+    // at least once, otherwise the mesh pass draws an empty frame.
+    top
+      .addBinding(renderBag, 'mode', {
+        label: 'mode',
+        options: { raymarch: 'raymarch', mesh: 'mesh' },
+      })
+      .on('change', (e) => setRender({ mode: e.value as 'raymarch' | 'mesh' }));
     top
       .addBinding(renderBag, 'stepBudget', { min: 16, max: 256, step: 1 })
       .on('change', (e) => setRender({ stepBudget: e.value }));

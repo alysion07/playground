@@ -1,6 +1,7 @@
 import { createGPU, WebGPUUnsupportedError, type GPUBundle } from '../render/renderer';
 import { RaymarchMaterial } from '../render/material';
 import { McPass } from '../render/mcPass';
+import { MeshPipeline } from '../render/meshPipeline';
 import { applyDragYawPitch, applyZoom } from '../render/camera';
 import { installResize } from '../util/resize';
 import { installPointer } from '../util/pointer';
@@ -14,6 +15,7 @@ export type AppContext = {
   gpu: GPUBundle;
   material: RaymarchMaterial;
   mcPass: McPass;
+  meshPipeline: MeshPipeline;
   resolution: { width: number; height: number };
   onFrame: (timeMs: number) => void;
 };
@@ -56,6 +58,10 @@ export async function bootstrap(): Promise<AppContext | null> {
   // `setBindings` is idempotent — every grid change triggers the same call
   // below so the bind groups always reference the current volume views.
   if (material.volume) mcPass.setBindings(material.volume, material.geometryBuffer);
+
+  // Mesh renderer shares the wind uniform buffer with the raymarch pass so a
+  // single `writeWindUniforms` call drives both pipelines in lockstep.
+  const meshPipeline = new MeshPipeline(gpu.device, gpu.format, material.windUniformBuffer);
 
   // Rebuild the shader pipeline every time the CSG tree or grid resolution
   // changes. Even pure parameter edits trigger a rebuild because parameter
@@ -123,5 +129,5 @@ export async function bootstrap(): Promise<AppContext | null> {
 
   const onFrame = (timeMs: number) => tickFps(timeMs);
 
-  return { canvas, gpu, material, mcPass, resolution, onFrame };
+  return { canvas, gpu, material, mcPass, meshPipeline, resolution, onFrame };
 }

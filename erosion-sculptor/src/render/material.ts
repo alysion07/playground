@@ -221,6 +221,13 @@ export class RaymarchMaterial {
     return this.geomBuffer;
   }
 
+  // Borrowed by MeshPipeline so the mesh renderer reads the same wind tint
+  // the raymarch pass reads. `writeWindUniforms` updates both pipelines in a
+  // single queue write since they share this buffer.
+  get windUniformBuffer(): GPUBuffer {
+    return this.windBuffer;
+  }
+
   // (Re)allocate the ψ volume at the given grid size. Destroys the previous
   // volume. Idempotent on identical sizes. Must be called at least once before
   // the first `rebuild`. Init + raymarch bind groups are rebuilt against the

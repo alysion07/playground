@@ -1,5 +1,5 @@
 import type { AppContext } from './bootstrap';
-import { computeBasis } from '../render/camera';
+import { computeBasis, computeViewProj } from '../render/camera';
 import { UNIFORM_FLOAT_COUNT } from '../render/material';
 import { consumeReset, tickMesh, tickPde } from '../sim/scheduler';
 import { appStore, setMesh, windDirVector } from '../state/store';
@@ -56,20 +56,49 @@ export function startLoop(ctx: AppContext): () => void {
       // wait happens *after* queue.submit below.
       const mcStart = tickMesh(ctx.material, ctx.mcPass, encoder);
       const view = ctx.gpu.context.getCurrentTexture().createView();
-      const pass = encoder.beginRenderPass({
-        colorAttachments: [
-          {
-            view,
-            loadOp: 'clear',
-            storeOp: 'store',
-            clearValue: { r: 0.04, g: 0.04, b: 0.06, a: 1 },
+      const clearValue = { r: 0.04, g: 0.04, b: 0.06, a: 1 };
+
+      if (state.render.mode === 'mesh') {
+        // Rasterize the MC output. Camera is uploaded as a view-projection
+        // matrix (not the raymarch basis) so the vertex stage can skip the
+        // fullscreen-triangle setup and do a standard MVP transform.
+        const aspect = ctx.resolution.width / Math.max(ctx.resolution.height, 1);
+        const viewProj = computeViewProj(basis, aspect);
+        ctx.meshPipeline.writeCam(viewProj, basis.ro);
+        const depthView = ctx.meshPipeline.ensureDepth(
+          ctx.resolution.width,
+          ctx.resolution.height,
+        );
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue }],
+          depthStencilAttachment: {
+            view: depthView,
+            depthLoadOp: 'clear',
+            depthClearValue: 1.0,
+            depthStoreOp: 'store',
           },
-        ],
-      });
-      pass.setPipeline(ctx.material.pipeline);
-      pass.setBindGroup(0, ctx.material.bindGroup);
-      pass.draw(3, 1, 0, 0);
-      pass.end();
+        });
+        // indexCount lags the GPU by the readback latency, so on the frames
+        // right after a Rebuild the draw call uses the *previous* mesh's
+        // count. Visually that's a few frames of stale indices before the
+        // store catches up — acceptable at user-driven cadence.
+        if (state.mesh.indexCount > 0) {
+          pass.setPipeline(ctx.meshPipeline.pipeline);
+          pass.setBindGroup(0, ctx.meshPipeline.bindGroup);
+          pass.setVertexBuffer(0, ctx.mcPass.verts);
+          pass.setIndexBuffer(ctx.mcPass.indices, 'uint32');
+          pass.drawIndexed(state.mesh.indexCount, 1, 0, 0, 0);
+        }
+        pass.end();
+      } else {
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue }],
+        });
+        pass.setPipeline(ctx.material.pipeline);
+        pass.setBindGroup(0, ctx.material.bindGroup);
+        pass.draw(3, 1, 0, 0);
+        pass.end();
+      }
       ctx.gpu.device.queue.submit([encoder.finish()]);
 
       if (mcStart !== null) {

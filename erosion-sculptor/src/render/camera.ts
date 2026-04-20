@@ -63,3 +63,76 @@ export function applyZoom(state: CameraState, deltaY: number): { dist: number } 
   const dist = Math.max(1.5, Math.min(15, state.dist * factor));
   return { dist };
 }
+
+// Build a column-major view matrix from the camera basis. The raymarch uses
+// the basis directly (right/up/forward as a local frame around ro), but the
+// mesh pipeline rasterizes triangles and needs a proper world→view transform.
+// WebGPU view space is right-handed looking down −z, so z_view = −forward.
+export function computeViewMatrix(basis: CameraBasis): Float32Array {
+  const r = basis.right;
+  const u = basis.up;
+  const f = basis.forward;
+  const eye = basis.ro;
+  const m = new Float32Array(16);
+  // Row-representation: rows are (r, u, −f, 0) with −(basis·eye) in col 3.
+  // Column-major layout → m[col * 4 + row].
+  m[0] = r[0]; m[1] = u[0]; m[2] = -f[0]; m[3] = 0;
+  m[4] = r[1]; m[5] = u[1]; m[6] = -f[1]; m[7] = 0;
+  m[8] = r[2]; m[9] = u[2]; m[10] = -f[2]; m[11] = 0;
+  m[12] = -(r[0] * eye[0] + r[1] * eye[1] + r[2] * eye[2]);
+  m[13] = -(u[0] * eye[0] + u[1] * eye[1] + u[2] * eye[2]);
+  m[14] = (f[0] * eye[0] + f[1] * eye[1] + f[2] * eye[2]);
+  m[15] = 1;
+  return m;
+}
+
+// WebGPU perspective projection. NDC is [-1,1]² × [0,1] (not GL's [-1,1]³) —
+// only the depth mapping differs from textbook GL code. Column-major.
+export function computePerspective(
+  fovyRadians: number,
+  aspect: number,
+  near: number,
+  far: number,
+): Float32Array {
+  const f = 1.0 / Math.tan(fovyRadians * 0.5);
+  const nf = 1.0 / (near - far);
+  const m = new Float32Array(16);
+  m[0] = f / aspect;
+  m[5] = f;
+  m[10] = far * nf;
+  m[11] = -1;
+  m[14] = near * far * nf;
+  // m[15] stays 0 — this is a perspective matrix, not affine.
+  return m;
+}
+
+// Column-major 4×4 multiply: c = a * b.
+// c[col][row] = Σ_k a[k][row] * b[col][k] → c[col*4+row] = Σ_k a[k*4+row] * b[col*4+k].
+export function mat4Multiply(a: Float32Array, b: Float32Array): Float32Array {
+  const r = new Float32Array(16);
+  for (let col = 0; col < 4; col++) {
+    for (let row = 0; row < 4; row++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) {
+        s += a[k * 4 + row] * b[col * 4 + k];
+      }
+      r[col * 4 + row] = s;
+    }
+  }
+  return r;
+}
+
+// Convenience: full view-projection for the mesh renderer. Default FOV picked
+// so the 2.4-extent volume fills the frame at dist≈4 — matches the look of the
+// raymarch preview where `forward * 2.15` plays the same role.
+export function computeViewProj(
+  basis: CameraBasis,
+  aspect: number,
+  fovyRadians: number = Math.PI / 3.5,
+  near: number = 0.1,
+  far: number = 100.0,
+): Float32Array {
+  const view = computeViewMatrix(basis);
+  const proj = computePerspective(fovyRadians, aspect, near, far);
+  return mat4Multiply(proj, view);
+}

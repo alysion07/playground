@@ -29,6 +29,7 @@ export const DEFAULT_CAMERA: CameraState = {
 export const DEFAULT_RENDER: RenderParams = {
   stepBudget: 96,
   wireframe: false,
+  mode: 'raymarch',
 };
 
 export const DEFAULT_PERF: PerformanceParams = {
