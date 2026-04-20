@@ -1,5 +1,6 @@
 import { createGPU, WebGPUUnsupportedError, type GPUBundle } from '../render/renderer';
 import { RaymarchMaterial } from '../render/material';
+import { McPass } from '../render/mcPass';
 import { applyDragYawPitch, applyZoom } from '../render/camera';
 import { installResize } from '../util/resize';
 import { installPointer } from '../util/pointer';
@@ -12,6 +13,7 @@ export type AppContext = {
   canvas: HTMLCanvasElement;
   gpu: GPUBundle;
   material: RaymarchMaterial;
+  mcPass: McPass;
   resolution: { width: number; height: number };
   onFrame: (timeMs: number) => void;
 };
@@ -49,6 +51,12 @@ export async function bootstrap(): Promise<AppContext | null> {
   material.setGrid(appStore.getState().grid.size);
   material.rebuild(appStore.getState().csg);
 
+  const mcPass = new McPass(gpu.device);
+  // Bind MC against the freshly-allocated ψ volume + shared GeomU buffer.
+  // `setBindings` is idempotent — every grid change triggers the same call
+  // below so the bind groups always reference the current volume views.
+  if (material.volume) mcPass.setBindings(material.volume, material.geometryBuffer);
+
   // Rebuild the shader pipeline every time the CSG tree or grid resolution
   // changes. Even pure parameter edits trigger a rebuild because parameter
   // values are baked into the WGSL source. A grid-size change reallocates the
@@ -60,7 +68,11 @@ export async function bootstrap(): Promise<AppContext | null> {
     const csgChanged = state.csg !== prev.csg;
     if (!gridChanged && !csgChanged) return;
     try {
-      if (gridChanged) material.setGrid(state.grid.size);
+      if (gridChanged) {
+        material.setGrid(state.grid.size);
+        // Volume views were recreated — MC must rebind before its next dispatch.
+        if (material.volume) mcPass.setBindings(material.volume, material.geometryBuffer);
+      }
       if (csgChanged || gridChanged) {
         material.rebuild(state.csg);
         resetPdeProgress();
@@ -111,5 +123,5 @@ export async function bootstrap(): Promise<AppContext | null> {
 
   const onFrame = (timeMs: number) => tickFps(timeMs);
 
-  return { canvas, gpu, material, resolution, onFrame };
+  return { canvas, gpu, material, mcPass, resolution, onFrame };
 }

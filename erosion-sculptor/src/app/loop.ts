@@ -1,8 +1,8 @@
 import type { AppContext } from './bootstrap';
 import { computeBasis } from '../render/camera';
 import { UNIFORM_FLOAT_COUNT } from '../render/material';
-import { consumeReset, tickPde } from '../sim/scheduler';
-import { appStore, windDirVector } from '../state/store';
+import { consumeReset, tickMesh, tickPde } from '../sim/scheduler';
+import { appStore, setMesh, windDirVector } from '../state/store';
 
 export function startLoop(ctx: AppContext): () => void {
   let stopped = false;
@@ -51,6 +51,10 @@ export function startLoop(ctx: AppContext): () => void {
       consumeReset(ctx.material);
       ctx.material.runInitIfNeeded(encoder);
       tickPde(ctx.material, encoder);
+      // MC dispatch runs on whatever ψ side the erode pass just wrote into,
+      // so the mesh reflects the most recent simulation state. Readback
+      // wait happens *after* queue.submit below.
+      const mcStart = tickMesh(ctx.material, ctx.mcPass, encoder);
       const view = ctx.gpu.context.getCurrentTexture().createView();
       const pass = encoder.beginRenderPass({
         colorAttachments: [
@@ -67,6 +71,22 @@ export function startLoop(ctx: AppContext): () => void {
       pass.draw(3, 1, 0, 0);
       pass.end();
       ctx.gpu.device.queue.submit([encoder.finish()]);
+
+      if (mcStart !== null) {
+        // Fire-and-forget: the promise resolves when the staging buffer maps,
+        // usually a few frames later. setMesh triggers a pane refresh that
+        // shows the new vertex count + overflow badge.
+        ctx.mcPass.readbackCounter().then((counts) => {
+          setMesh({
+            vertexCount: counts.vertexCount,
+            indexCount: counts.indexCount,
+            overflow: counts.overflow,
+            lastBuildMs: performance.now() - mcStart,
+          });
+        }).catch((err) => {
+          console.error('[mc.readback] failed:', err);
+        });
+      }
     }
 
     ctx.onFrame(timeMs);

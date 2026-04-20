@@ -3,7 +3,8 @@
 // in the store so UI, scheduler, and telemetry stay in sync.
 
 import type { RaymarchMaterial } from '../render/material';
-import { appStore, resetPdeProgress, setPde, windDirVector } from '../state/store';
+import type { McPass } from '../render/mcPass';
+import { appStore, resetPdeProgress, setMesh, setPde, windDirVector } from '../state/store';
 
 // CFL upper bound for explicit-Euler curvature flow on a 3D regular grid:
 // dt < h² / (3α). The actual nonlinear gradMag-weighted update slightly
@@ -70,4 +71,27 @@ export function tickPde(material: RaymarchMaterial, encoder: GPUCommandEncoder):
     pendingSingleSteps: 0,
   });
   return total;
+}
+
+// Drain the `mesh.pendingBuild` flag into a single MC dispatch. Returns the
+// encode start time if a dispatch ran (so the loop can compute wall-time once
+// the async readback resolves), or null if idle.
+//
+// The readback itself is *not* awaited here — it must happen after the frame's
+// `device.queue.submit`. The loop calls `mcPass.readbackCounter()` once
+// submission is in flight and writes the resulting counts into the store
+// when the promise resolves.
+export function tickMesh(
+  material: RaymarchMaterial,
+  mcPass: McPass,
+  encoder: GPUCommandEncoder,
+): number | null {
+  const mesh = appStore.getState().mesh;
+  if (!mesh.pendingBuild || !material.volume) return null;
+  // Clear the flag before dispatch so a second click isn't needed and we
+  // never accidentally re-enter with the same request in the next frame.
+  setMesh({ pendingBuild: false });
+  const t0 = performance.now();
+  mcPass.dispatch(encoder, material.volume.currentIndex);
+  return t0;
 }

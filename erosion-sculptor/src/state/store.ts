@@ -4,6 +4,7 @@ import type {
   CsgNode,
   CsgOp,
   GridParams,
+  MeshState,
   OpNode,
   PdeState,
   PerformanceParams,
@@ -67,6 +68,18 @@ export const DEFAULT_WIND: WindParams = {
   viz: true,
 };
 
+// Counts are 0 until the first MC dispatch runs. `pendingBuild` starts false
+// so the app idles after load; the user clicks Rebuild Mesh to kick off
+// extraction. The mesh render pipeline (Step 7) checks vertexCount > 0
+// before attempting to draw.
+export const DEFAULT_MESH: MeshState = {
+  pendingBuild: false,
+  vertexCount: 0,
+  indexCount: 0,
+  overflow: false,
+  lastBuildMs: 0,
+};
+
 const PRIM_DEFAULTS: Record<PrimType, { params: number[] }> = {
   sphere: { params: [0.6] },
   box: { params: [0.5, 0.5, 0.5] },
@@ -108,6 +121,7 @@ export const appStore = createStore<RootState>(() => ({
   grid: { ...DEFAULT_GRID },
   pde: { ...DEFAULT_PDE },
   wind: { ...DEFAULT_WIND },
+  mesh: { ...DEFAULT_MESH },
 }));
 
 // --- mutators ---------------------------------------------------------------
@@ -207,6 +221,16 @@ export function setPde(patch: Partial<PdeState>): void {
 
 export function setWind(patch: Partial<WindParams>): void {
   appStore.setState({ wind: { ...appStore.getState().wind, ...patch } });
+}
+
+export function setMesh(patch: Partial<MeshState>): void {
+  appStore.setState({ mesh: { ...appStore.getState().mesh, ...patch } });
+}
+
+// Queue an MC extraction to run on the next render frame. The scheduler drains
+// this flag into a single dispatch + async counter readback.
+export function requestMeshBuild(): void {
+  setMesh({ pendingBuild: true });
 }
 
 // Convert (yaw, elevation) into a unit 3-vector in world space. Sign convention

@@ -214,6 +214,13 @@ export class RaymarchMaterial {
     return this.raymarchBindGroups[this.volume.currentIndex];
   }
 
+  // Exposed for McPass (Step 6) and the mesh render pipeline (Step 7). The
+  // ψ volume geometry is owned here — other passes bind it read-only so they
+  // share a single source of truth for origin / voxel size / grid resolution.
+  get geometryBuffer(): GPUBuffer {
+    return this.geomBuffer;
+  }
+
   // (Re)allocate the ψ volume at the given grid size. Destroys the previous
   // volume. Idempotent on identical sizes. Must be called at least once before
   // the first `rebuild`. Init + raymarch bind groups are rebuilt against the

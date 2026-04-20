@@ -4,6 +4,7 @@ import {
   addPrim,
   appStore,
   removeNode,
+  requestMeshBuild,
   requestReset,
   requestSingleSteps,
   setGrid,
@@ -27,6 +28,9 @@ const GRID_SIZES: GridSize[] = [32, 64, 96, 128];
 // parameter edits skip the rebuild via a manual refresh path.
 export function mountCsgBuilder(host: HTMLElement): () => void {
   let pane: Pane | null = null;
+  // Kept in closure so the mesh-state subscriber below can mutate it without
+  // rebuilding the pane. Tweakpane re-reads bag values on `pane.refresh()`.
+  const meshBag = { vertexCount: 0, overflow: 'ok' };
 
   const render = () => {
     if (pane) pane.dispose();
@@ -107,6 +111,14 @@ export function mountCsgBuilder(host: HTMLElement): () => void {
       .addBinding(windBag, 'viz', { label: 'viz (W)' })
       .on('change', (e) => setWind({ viz: e.value }));
 
+    // --- mesh extraction (Marching Cubes)
+    const meshFolder = pane.addFolder({ title: 'Mesh' });
+    meshBag.vertexCount = state.mesh.vertexCount;
+    meshBag.overflow = state.mesh.overflow ? 'OVERFLOW' : 'ok';
+    meshFolder.addButton({ title: 'Rebuild Mesh' }).on('click', () => requestMeshBuild());
+    meshFolder.addBinding(meshBag, 'vertexCount', { readonly: true, label: 'vertices' });
+    meshFolder.addBinding(meshBag, 'overflow', { readonly: true, label: 'status' });
+
     // --- add primitive buttons
     const adders = pane.addFolder({ title: 'Add Primitive' });
     for (const t of PRIM_TYPES) {
@@ -174,11 +186,19 @@ export function mountCsgBuilder(host: HTMLElement): () => void {
   // we let tweakpane keep its existing widgets; the shader is rebuilt every
   // change anyway because the SDF is generated from the tree.
   let lastSignature = signatureOf(appStore.getState().csg);
-  const unsubscribe = appStore.subscribe((state) => {
+  const unsubscribe = appStore.subscribe((state, prev) => {
     const sig = signatureOf(state.csg);
     if (sig !== lastSignature) {
       lastSignature = sig;
       render();
+      return;
+    }
+    // Mesh readout: mutate bag in place + refresh so the user sees new vertex
+    // counts without losing scroll position / focus in the pane.
+    if (state.mesh !== prev.mesh) {
+      meshBag.vertexCount = state.mesh.vertexCount;
+      meshBag.overflow = state.mesh.overflow ? 'OVERFLOW' : 'ok';
+      pane?.refresh();
     }
   });
 

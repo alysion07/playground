@@ -106,6 +106,24 @@ export type PdeState = {
   pendingReset: boolean;
 };
 
+// Marching-Cubes mesh extraction state. The MC compute pass is triggered by
+// an explicit user action (Rebuild Mesh button) rather than a continuous
+// re-extract on every ψ change — extraction at 128³ is a ~10ms dispatch plus
+// an async counter readback, so tying it to the render loop would trade away
+// PDE framerate for stale-shown mesh. `pendingBuild` is drained by the
+// scheduler into a single MC dispatch; the async readback later populates
+// `vertexCount/indexCount/overflow`. `lastBuildMs` is encode wall time for
+// the FPS overlay. The actual vertex/index GPU buffers live on the MCPass
+// object — the store only keeps the scalar telemetry so state stays JSON-
+// serializable for future URL sync.
+export type MeshState = {
+  pendingBuild: boolean;
+  vertexCount: number;
+  indexCount: number;
+  overflow: boolean;
+  lastBuildMs: number;
+};
+
 export type RootState = {
   csg: CsgNode;
   camera: CameraState;
@@ -114,4 +132,5 @@ export type RootState = {
   grid: GridParams;
   pde: PdeState;
   wind: WindParams;
+  mesh: MeshState;
 };
