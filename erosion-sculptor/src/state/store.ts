@@ -11,6 +11,7 @@ import type {
   PrimType,
   RenderParams,
   RootState,
+  WindParams,
 } from './types';
 
 let nextIdNum = 0;
@@ -50,6 +51,19 @@ export const DEFAULT_PDE: PdeState = {
   lastStepMs: 0,
   pendingSingleSteps: 0,
   pendingReset: false,
+};
+
+// Wind defaults: β=0 so Week 3 lands with pure curvature flow unchanged from
+// Week 2. User opts in by dragging the slider up. yaw/elevation pick an
+// arbitrary non-axis-aligned direction so a non-zero β immediately produces
+// visible asymmetry; noise 0.25 gives a gentle spatial variation that breaks
+// perfect symmetry without being distracting.
+export const DEFAULT_WIND: WindParams = {
+  beta: 0.0,
+  yaw: 0.3,
+  elevation: 0.0,
+  noise: 0.25,
+  viz: true,
 };
 
 const PRIM_DEFAULTS: Record<PrimType, { params: number[] }> = {
@@ -92,6 +106,7 @@ export const appStore = createStore<RootState>(() => ({
   perf: { ...DEFAULT_PERF },
   grid: { ...DEFAULT_GRID },
   pde: { ...DEFAULT_PDE },
+  wind: { ...DEFAULT_WIND },
 }));
 
 // --- mutators ---------------------------------------------------------------
@@ -187,6 +202,23 @@ export function setGrid(patch: Partial<GridParams>): void {
 
 export function setPde(patch: Partial<PdeState>): void {
   appStore.setState({ pde: { ...appStore.getState().pde, ...patch } });
+}
+
+export function setWind(patch: Partial<WindParams>): void {
+  appStore.setState({ wind: { ...appStore.getState().wind, ...patch } });
+}
+
+// Convert (yaw, elevation) into a unit 3-vector in world space. Sign convention
+// follows raymarch.wgsl — +y is up, +x is right, +z is forward. yaw=0
+// elevation=0 → +x axis. Used by both the erode compute (advection direction)
+// and raymarch (surface-pressure dot product), so colocating the conversion
+// here keeps the two in sync.
+export function windDirVector(wind: WindParams): [number, number, number] {
+  const ce = Math.cos(wind.elevation);
+  const se = Math.sin(wind.elevation);
+  const cy = Math.cos(wind.yaw);
+  const sy = Math.sin(wind.yaw);
+  return [ce * cy, se, ce * sy];
 }
 
 // Reset PDE iteration counter and step telemetry. Called after a fresh bake.

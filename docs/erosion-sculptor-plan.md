@@ -158,7 +158,6 @@ erosion-sculptor/
         raymarch.wgsl     (week 1)
         bake.wgsl         (week 2)
         curvature_flow.wgsl (week 2)
-        wind_flow.wgsl    (week 3)
         march.wgsl        (week 3)
         lit_mesh.wgsl     (week 3)
     state/

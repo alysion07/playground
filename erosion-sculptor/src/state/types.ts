@@ -59,6 +59,29 @@ export type GridParams = {
   size: GridSize;
 };
 
+// Wind-advection parameters. Drives the β·dot(w, ∇ψ) term in erode.wgsl and
+// the surface pressure shading in raymarch.wgsl. `dir` is derived from
+// (yaw, elevation) inside the store before uniform upload — UI sliders
+// expose the two angles rather than a raw 3D vector because users think in
+// terms of "where is the wind coming from".
+export type WindParams = {
+  // Wind advection strength. 0 disables the wind term entirely (erode.wgsl
+  // falls back to pure curvature flow). Slider cap is 1.2 — past that the
+  // centered-difference advection becomes visibly oscillatory even with α
+  // pinning things down.
+  beta: number;
+  // Horizontal angle in radians, [0, 2π). 0 = +x.
+  yaw: number;
+  // Vertical angle in radians, [−π/2, π/2]. 0 = horizontal.
+  elevation: number;
+  // Procedural value-noise modulation amplitude on the wind field, [0, 1].
+  // 0 = perfectly uniform direction everywhere; 1 = heavy per-voxel jitter.
+  noise: number;
+  // Surface-pressure color overlay + SVG compass visibility. Toggled by
+  // the tweakpane "viz" checkbox or the global `W` key.
+  viz: boolean;
+};
+
 // Curvature-flow PDE state. `playing` drives the RAF loop. UI events that
 // need GPU work (manual stepping, resetting the volume) push pending counters /
 // flags here; the scheduler consumes them inside the render loop where it has
@@ -90,4 +113,5 @@ export type RootState = {
   perf: PerformanceParams;
   grid: GridParams;
   pde: PdeState;
+  wind: WindParams;
 };
