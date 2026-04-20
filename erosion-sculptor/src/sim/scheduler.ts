@@ -88,6 +88,12 @@ export function tickMesh(
 ): number | null {
   const mesh = appStore.getState().mesh;
   if (!mesh.pendingBuild || !material.volume) return null;
+  // Staging buffer is mapped while readback is outstanding — any queued
+  // copyBufferToBuffer would fail WebGPU validation. Leave the flag set so
+  // we retry on the next frame; the readback usually resolves in 1–2 frames.
+  // This naturally throttles auto-rebuild to the readback cadence (~30 fps
+  // at 128³, faster at smaller grids) without any explicit rate limiting.
+  if (mcPass.isReadbackPending()) return null;
   // Clear the flag before dispatch so a second click isn't needed and we
   // never accidentally re-enter with the same request in the next frame.
   setMesh({ pendingBuild: false });

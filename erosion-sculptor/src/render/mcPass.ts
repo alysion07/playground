@@ -212,6 +212,14 @@ export class McPass {
     return this.inFlight;
   }
 
+  // True while a readback promise is outstanding. The staging buffer is
+  // mapped during this window — queueing another copyBufferToBuffer into it
+  // would be a WebGPU validation error, so callers (scheduler.tickMesh,
+  // loop.ts auto-rebuild) gate dispatch on this flag.
+  isReadbackPending(): boolean {
+    return this.inFlight !== null;
+  }
+
   // Public handles for the Step 7 mesh render pipeline.
   get verts(): GPUBuffer { return this.vertexBuffer; }
   get indices(): GPUBuffer { return this.indexBuffer; }

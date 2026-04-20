@@ -2,7 +2,7 @@ import type { AppContext } from './bootstrap';
 import { computeBasis, computeViewProj } from '../render/camera';
 import { UNIFORM_FLOAT_COUNT } from '../render/material';
 import { consumeReset, tickMesh, tickPde } from '../sim/scheduler';
-import { appStore, setMesh, windDirVector } from '../state/store';
+import { appStore, requestMeshBuild, setMesh, windDirVector } from '../state/store';
 
 export function startLoop(ctx: AppContext): () => void {
   let stopped = false;
@@ -50,7 +50,17 @@ export function startLoop(ctx: AppContext): () => void {
       // automatic barriers between passes in the same submit.
       consumeReset(ctx.material);
       ctx.material.runInitIfNeeded(encoder);
-      tickPde(ctx.material, encoder);
+      const substeps = tickPde(ctx.material, encoder);
+      // Auto-rebuild the mesh while ψ keeps evolving. Only meaningful in
+      // mesh mode — raymarch reads ψ directly every frame and doesn't need
+      // an intermediate mesh. tickMesh itself gates on mcPass.isReadbackPending
+      // so requesting each frame is safe: the flag simply sits until the
+      // prior readback resolves, then gets consumed on the next eligible
+      // frame. Without this, mesh mode showed a frozen snapshot from the
+      // last Rebuild click.
+      if (substeps > 0 && state.render.mode === 'mesh') {
+        requestMeshBuild();
+      }
       // MC dispatch runs on whatever ψ side the erode pass just wrote into,
       // so the mesh reflects the most recent simulation state. Readback
       // wait happens *after* queue.submit below.
