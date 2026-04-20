@@ -2,7 +2,7 @@ import type { AppContext } from './bootstrap';
 import { computeBasis } from '../render/camera';
 import { UNIFORM_FLOAT_COUNT } from '../render/material';
 import { consumeReset, tickPde } from '../sim/scheduler';
-import { appStore } from '../state/store';
+import { appStore, windDirVector } from '../state/store';
 
 export function startLoop(ctx: AppContext): () => void {
   let stopped = false;
@@ -36,6 +36,11 @@ export function startLoop(ctx: AppContext): () => void {
     uniforms[18] = basis.up[2];
     uniforms[19] = 0;
     ctx.material.writeUniforms(uniforms);
+    ctx.material.writeWindUniforms(
+      windDirVector(state.wind),
+      state.wind.viz ? 1 : 0,
+      state.wind.noise,
+    );
 
     if (ctx.material.pipeline && ctx.material.bindGroup) {
       const encoder = ctx.gpu.device.createCommandEncoder({ label: 'frame' });

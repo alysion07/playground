@@ -38,6 +38,12 @@ export class RaymarchMaterial {
   // ψ via `bindGroup` getter.
   private raymarchBgl: GPUBindGroupLayout;
   private uniformBuffer: GPUBuffer;
+  // Wind uniforms are owned by the material because both raymarch (surface-
+  // pressure overlay) and, later, the mesh lit pipeline (Step 7) read them.
+  // The erode compute has its own separate uniform buffer — different
+  // visibility class (COMPUTE vs FRAGMENT) and different update frequency
+  // (per-substep vs per-frame).
+  private windBuffer!: GPUBuffer;
   pipeline: GPURenderPipeline | null = null;
   private raymarchBindGroups: [GPUBindGroup, GPUBindGroup] | null = null;
 
@@ -86,6 +92,11 @@ export class RaymarchMaterial {
             viewDimension: '3d',
           },
         },
+        {
+          binding: 3,
+          visibility: GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform' },
+        },
       ],
     });
     this.uniformBuffer = device.createBuffer({
@@ -96,6 +107,12 @@ export class RaymarchMaterial {
     this.geomBuffer = device.createBuffer({
       label: 'volume-geom-uniforms',
       size: VOLUME_GEOMETRY_UNIFORM_SIZE,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    this.windBuffer = device.createBuffer({
+      label: 'wind-uniforms',
+      // 32 bytes: dir.xyz, viz, noise, _pad*3 — matches WindU in raymarch.wgsl.
+      size: 32,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     this.initBgl = device.createBindGroupLayout({
@@ -239,6 +256,7 @@ export class RaymarchMaterial {
         { binding: 0, resource: { buffer: this.uniformBuffer } },
         { binding: 1, resource: { buffer: this.geomBuffer } },
         { binding: 2, resource: view },
+        { binding: 3, resource: { buffer: this.windBuffer } },
       ],
     });
   }
@@ -349,6 +367,20 @@ export class RaymarchMaterial {
       values.buffer,
       values.byteOffset,
       values.byteLength,
+    );
+  }
+
+  // Packed as (dir.xyz, viz, noise, pad, pad, pad). Caller converts
+  // (yaw, elevation) → dir via store.windDirVector to keep raymarch and
+  // erode pointing at the same wind direction.
+  writeWindUniforms(dir: [number, number, number], viz: number, noise: number): void {
+    const u = new Float32Array([dir[0], dir[1], dir[2], viz, noise, 0, 0, 0]);
+    this.device.queue.writeBuffer(
+      this.windBuffer,
+      0,
+      u.buffer,
+      u.byteOffset,
+      u.byteLength,
     );
   }
 

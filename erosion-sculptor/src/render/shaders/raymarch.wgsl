@@ -38,9 +38,27 @@ struct GeomU {
   sizeWord: vec4<u32>,
 };
 
+// 32-byte uniform driving the surface-pressure overlay. dir is the world-space
+// wind direction (not camera-relative) — dotting it with the surface normal
+// gives a signed "pressure" that tints warm/cool. `viz` is the toggle:
+//   viz == 0  → overlay fully off, raymarch returns the bare material color
+//   viz == 1  → overlay on with fixed 0.6 mix weight at peak pressure
+// noise is reserved for a future raymarch-side jitter (currently unused); the
+// struct layout mirrors ErodeU.windDir so uniforms can be authored once and
+// uploaded to both pipelines without re-shuffling.
+struct WindU {
+  dir: vec3<f32>,
+  viz: f32,
+  noise: f32,
+  _pad0: f32,
+  _pad1: f32,
+  _pad2: f32,
+};
+
 @group(0) @binding(0) var<uniform> U: CamU;
 @group(0) @binding(1) var<uniform> G: GeomU;
 @group(0) @binding(2) var psi: texture_3d<f32>;
+@group(0) @binding(3) var<uniform> W: WindU;
 
 fn loadPsi(c: vec3<i32>) -> f32 {
   let n = i32(G.sizeWord.x);
@@ -164,7 +182,21 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
   let lightDir = normalize(vec3<f32>(0.6, 0.8, 0.4));
   let ndl = max(dot(n, lightDir), 0.0);
   let ambient = vec3<f32>(0.18, 0.20, 0.24);
-  let base = vec3<f32>(0.78, 0.62, 0.48) + 0.08 * (n * 0.5 + 0.5);
+  let stone = vec3<f32>(0.78, 0.62, 0.48) + 0.08 * (n * 0.5 + 0.5);
+
+  // Surface pressure: how "into the wind" the surface is facing. +1 means
+  // fully windward (this face gets sand-blasted → warm tint), -1 means fully
+  // leeward (sheltered → cool tint). Clamp keeps the tint from overshooting
+  // at grazing angles. The mix weight peaks at 0.6 when |pressure|=1 so the
+  // original albedo is never fully lost — you should still see stone through
+  // the viz layer. W.viz == 0 collapses the whole overlay to zero.
+  let pressure = clamp(-dot(n, W.dir), -1.0, 1.0);
+  let warm = vec3<f32>(0.95, 0.30, 0.22);
+  let cool = vec3<f32>(0.22, 0.40, 0.95);
+  let pColor = select(cool, warm, pressure > 0.0);
+  let pMag = abs(pressure);
+  let base = mix(stone, pColor, W.viz * pMag * 0.6);
+
   let lit = base * (ambient + ndl * vec3<f32>(0.95, 0.92, 0.85));
   let rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.0) * 0.25;
   return vec4<f32>(lit + vec3<f32>(rim), 1.0);
