@@ -55,31 +55,60 @@ fn loadPsi(c: vec3<i32>) -> f32 {
   return textureLoad(psi_in, cc, 0).r;
 }
 
-// Hash-based 3D value noise. Returns a float in [-1, 1] per input cell.
-// Deterministic, cheap, no table lookup. Used only to jitter the wind
-// direction — not the erosion rate — so moderate quality is fine.
-fn hash31(p: vec3<f32>) -> f32 {
-  let q = fract(p * vec3<f32>(0.1031, 0.1030, 0.0973));
+// Integer-lattice hash → f32 in [-1, 1]. Called on *integer* lattice points
+// so adjacent cells get independent values; interpolation happens in the
+// caller. The previous version hashed the continuous position, which made
+// `valueNoise3` behave like per-point white noise — fine for speckle but
+// useless for "gust" shapes because no two neighboring voxels saw similar
+// values.
+fn hashLattice(cell: vec3<f32>) -> f32 {
+  let q = fract(cell * vec3<f32>(0.1031, 0.1030, 0.0973));
   let r = q + dot(q, q.yzx + vec3<f32>(33.33));
   return fract((r.x + r.y) * r.z) * 2.0 - 1.0;
 }
 
+// Trilinear-interpolated value noise on a unit lattice. Smoothstep fade
+// (3t² − 2t³) is the classic Perlin weighting — gives C¹ continuity across
+// cell boundaries, which is what makes the field read as smooth gusts
+// rather than a voronoi-like speckle.
+fn valueNoise1(p: vec3<f32>) -> f32 {
+  let pi = floor(p);
+  let pf = fract(p);
+  let w = pf * pf * (3.0 - 2.0 * pf);
+  let c000 = hashLattice(pi + vec3<f32>(0.0, 0.0, 0.0));
+  let c100 = hashLattice(pi + vec3<f32>(1.0, 0.0, 0.0));
+  let c010 = hashLattice(pi + vec3<f32>(0.0, 1.0, 0.0));
+  let c110 = hashLattice(pi + vec3<f32>(1.0, 1.0, 0.0));
+  let c001 = hashLattice(pi + vec3<f32>(0.0, 0.0, 1.0));
+  let c101 = hashLattice(pi + vec3<f32>(1.0, 0.0, 1.0));
+  let c011 = hashLattice(pi + vec3<f32>(0.0, 1.0, 1.0));
+  let c111 = hashLattice(pi + vec3<f32>(1.0, 1.0, 1.0));
+  let x00 = mix(c000, c100, w.x);
+  let x10 = mix(c010, c110, w.x);
+  let x01 = mix(c001, c101, w.x);
+  let x11 = mix(c011, c111, w.x);
+  let y0 = mix(x00, x10, w.y);
+  let y1 = mix(x01, x11, w.y);
+  return mix(y0, y1, w.z);
+}
+
 fn valueNoise3(p: vec3<f32>) -> vec3<f32> {
-  // Three independent hashes using spatial offsets; cheaper than sampling a
-  // table three times. The offsets are arbitrary but non-aligned to avoid
-  // correlated directions along the principal axes.
+  // Three independent samples via spatial offsets. Offsets are arbitrary but
+  // non-aligned so the resulting vector components don't share lattice nodes.
   return vec3<f32>(
-    hash31(p),
-    hash31(p + vec3<f32>(17.1, 5.3, 9.7)),
-    hash31(p + vec3<f32>(3.9, 23.1, 11.4)),
+    valueNoise1(p),
+    valueNoise1(p + vec3<f32>(17.1, 5.3, 9.7)),
+    valueNoise1(p + vec3<f32>(3.9, 23.1, 11.4)),
   );
 }
 
 // Returns a (not necessarily unit) wind vector at world position p. Base is
-// E.windDir; noise adds a per-voxel-scale jitter whose amplitude is E.windNoise.
-// When E.windNoise == 0 this degenerates to a perfectly uniform field.
+// E.windDir; noise adds a coherent spatial jitter whose amplitude is
+// E.windNoise. Frequency 1.5 gives ~3–4 gust cells across the ψ volume's
+// ~2.4-unit extents — lumpy enough to be visible, not so fine that it masks
+// the directional bias. E.windNoise == 0 → perfectly uniform field.
 fn windFieldAt(p: vec3<f32>) -> vec3<f32> {
-  let freq = 2.5;
+  let freq = 1.5;
   let jitter = valueNoise3(p * freq);
   return E.windDir + E.windNoise * jitter;
 }

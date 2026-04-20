@@ -54,15 +54,16 @@ export const DEFAULT_PDE: PdeState = {
 };
 
 // Wind defaults: β=0 so Week 3 lands with pure curvature flow unchanged from
-// Week 2. User opts in by dragging the slider up. yaw/elevation pick an
+// Week 2 — user opts in by dragging the slider up. yaw/elevation pick an
 // arbitrary non-axis-aligned direction so a non-zero β immediately produces
-// visible asymmetry; noise 0.25 gives a gentle spatial variation that breaks
-// perfect symmetry without being distracting.
+// visible asymmetry. noise starts at 0 so the directional bias is clean; the
+// spatial variation adds visual interest but can mask a subtle β at first
+// glance, so we let the user discover it rather than applying it by default.
 export const DEFAULT_WIND: WindParams = {
   beta: 0.0,
   yaw: 0.3,
   elevation: 0.0,
-  noise: 0.25,
+  noise: 0.0,
   viz: true,
 };
 

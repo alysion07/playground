@@ -119,7 +119,6 @@ function erodeWindStepCPU(
 function measureRadiusAxis(
   psi: Float32Array,
   N: number,
-  origin: number,
   h: number,
   axis: 'x' | 'y' | 'z',
   sign: 1 | -1,
@@ -181,14 +180,14 @@ describe('wind-advection erode kernel (CPU reference)', () => {
     const steps = 40;
 
     let psi = bakeSphere(N, h, origin, R0);
-    const R_plus_before = measureRadiusAxis(psi, N, origin, h, 'x', 1);
+    const R_plus_before = measureRadiusAxis(psi, N, h, 'x', 1);
 
     for (let s = 0; s < steps; s++) {
       psi = erodeWindStepCPU(psi, N, h, alpha, beta, dt, 1, 0, 0);
     }
 
-    const R_plus_after = measureRadiusAxis(psi, N, origin, h, 'x', 1);
-    const R_minus_after = measureRadiusAxis(psi, N, origin, h, 'x', -1);
+    const R_plus_after = measureRadiusAxis(psi, N, h, 'x', 1);
+    const R_minus_after = measureRadiusAxis(psi, N, h, 'x', -1);
 
     // For a pure linear advection of ψ with velocity +β·w, the sphere
     // translates by β·t·wx along +x. The windward radius (measured from
@@ -219,8 +218,8 @@ describe('wind-advection erode kernel (CPU reference)', () => {
       psi = erodeWindStepCPU(psi, N, h, alpha, beta, dt, 1, 0, 0);
     }
 
-    const R_leeward = measureRadiusAxis(psi, N, origin, h, 'x', 1);
-    const R_windward = measureRadiusAxis(psi, N, origin, h, 'x', -1);
+    const R_leeward = measureRadiusAxis(psi, N, h, 'x', 1);
+    const R_windward = measureRadiusAxis(psi, N, h, 'x', -1);
 
     // With w = +x̂, the entire level set transports in +x. The +x face
     // (leeward, sheltered — downwind of the blob) gets pushed *outward* by
