@@ -50,3 +50,33 @@
 1. `npm run lint && npm run test`
 2. 새 셰이더 추가 시 WebGPU/WebGL2 양쪽 경로 확인
 3. 상태 스키마 바꾸면 `url-sync.ts` 버전 올리기
+
+## Active Toy: Erosion Sculptor (Week 1)
+
+CSG로 쌓은 SDF 덩어리를 향후 Level Set PDE로 침식시키는 WebGPU 인터랙티브 아트.
+Week 1 범위: 모노레포 통합 + CSG 트리 + 정적 SDF 레이마칭 프리뷰. PDE는 Week 2부터.
+
+### Stack
+- Vite + TypeScript
+- **WebGPU 전용** (WebGL 폴백 없음 — 미지원 브라우저는 안내 화면)
+- Three.js `three/webgpu` import path + WGSL 셰이더
+- Zustand (vanilla store)
+- tweakpane (CSG 트리 에디터), Tailwind (애플리케이션 셸)
+
+### Run (erosion-sculptor/)
+- `npm i`
+- `npm run dev` — Vite dev server (`http://localhost:5174`)
+- `npm run build` — `tsc --noEmit && vite build`
+- `npm run test` — Vitest
+
+### Conventions
+- `.wgsl`은 `?raw`로 import
+- SDF 트리 → WGSL 문자열 생성은 `src/core/sdfGen.ts`
+- 상태 변경 시 `material.rebuild(sdfGen(tree))`로 셰이더 리빌드
+
+### Roadmap
+주차별 상세: `docs/erosion-sculptor-plan.md`
+- Week 1 (현재): scaffold + CSG 프리뷰
+- Week 2: ψ 볼륨 + 곡률 흐름 PDE
+- Week 3: 바람 이방성 + marching cubes
+- Week 4: GLB/WebM 내보내기 + URL 공유
