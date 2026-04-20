@@ -5,7 +5,8 @@ import { installResize } from '../util/resize';
 import { installPointer } from '../util/pointer';
 import { mountFpsOverlay } from '../ui/fps-overlay';
 import { mountCsgBuilder } from '../ui/csg-builder';
-import { appStore, resetPdeProgress, setCamera } from '../state/store';
+import { mountWindCompass } from '../ui/wind-compass';
+import { appStore, resetPdeProgress, setCamera, setWind } from '../state/store';
 
 export type AppContext = {
   canvas: HTMLCanvasElement;
@@ -91,6 +92,22 @@ export async function bootstrap(): Promise<AppContext | null> {
 
   const panelEl = document.getElementById('panel');
   if (panelEl instanceof HTMLElement) mountCsgBuilder(panelEl);
+
+  const compassEl = document.getElementById('compass');
+  if (compassEl instanceof HTMLElement) mountWindCompass(compassEl);
+
+  // Global W → toggle wind viz. Filter out W typed into form inputs (tweakpane
+  // text entries, number fields) so the user can still use 'w' inside those.
+  // No modifier shortcuts on this key, so we explicitly skip any modifier
+  // combo to stay out of the way of browser/system bindings.
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key !== 'w' && e.key !== 'W') return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    const t = e.target;
+    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
+    setWind({ viz: !appStore.getState().wind.viz });
+  };
+  window.addEventListener('keydown', onKey);
 
   const onFrame = (timeMs: number) => tickFps(timeMs);
 

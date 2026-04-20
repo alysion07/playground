@@ -11,6 +11,7 @@ import {
   setOpKind,
   setPde,
   setRender,
+  setWind,
   updatePrim,
 } from '../state/store';
 import { walk } from '../core/csg';
@@ -75,6 +76,36 @@ export function mountCsgBuilder(host: HTMLElement): () => void {
     erosion.addButton({ title: 'Step ×1' }).on('click', () => requestSingleSteps(1));
     erosion.addButton({ title: 'Step ×10' }).on('click', () => requestSingleSteps(10));
     erosion.addButton({ title: 'Reset' }).on('click', () => requestReset());
+
+    // --- wind controls
+    const wind = pane.addFolder({ title: 'Wind' });
+    const windBag = {
+      beta: state.wind.beta,
+      yaw: state.wind.yaw,
+      elevation: state.wind.elevation,
+      noise: state.wind.noise,
+      viz: state.wind.viz,
+    };
+    wind
+      .addBinding(windBag, 'beta', { label: 'β (strength)', min: 0, max: 1.2, step: 0.01 })
+      .on('change', (e) => setWind({ beta: e.value }));
+    wind
+      .addBinding(windBag, 'yaw', { label: 'yaw', min: 0, max: 2 * Math.PI, step: 0.01 })
+      .on('change', (e) => setWind({ yaw: e.value }));
+    wind
+      .addBinding(windBag, 'elevation', {
+        label: 'elevation',
+        min: -Math.PI / 2,
+        max: Math.PI / 2,
+        step: 0.01,
+      })
+      .on('change', (e) => setWind({ elevation: e.value }));
+    wind
+      .addBinding(windBag, 'noise', { label: 'noise', min: 0, max: 1, step: 0.01 })
+      .on('change', (e) => setWind({ noise: e.value }));
+    wind
+      .addBinding(windBag, 'viz', { label: 'viz (W)' })
+      .on('change', (e) => setWind({ viz: e.value }));
 
     // --- add primitive buttons
     const adders = pane.addFolder({ title: 'Add Primitive' });
