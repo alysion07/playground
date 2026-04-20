@@ -100,14 +100,16 @@ export class MeshPipeline {
     });
   }
 
-  // Pack the camera into the uniform buffer. `viewProj` is column-major
-  // 16 floats; `ro` is the world-space camera origin for rim shading.
-  writeCam(viewProj: Float32Array, ro: [number, number, number]): void {
+  // Pack the camera + wireframe toggle into the uniform buffer. `viewProj` is
+  // column-major 16 floats; `ro` is the world-space camera origin for rim
+  // shading; `wireframe` ∈ {0,1} enables the barycentric triangle-edge
+  // overlay in the fragment shader.
+  writeCam(viewProj: Float32Array, ro: [number, number, number], wireframe: number): void {
     this.camScratch.set(viewProj, 0);
     this.camScratch[16] = ro[0];
     this.camScratch[17] = ro[1];
     this.camScratch[18] = ro[2];
-    this.camScratch[19] = 0;
+    this.camScratch[19] = wireframe;
     this.device.queue.writeBuffer(
       this.camBuffer,
       0,

@@ -64,7 +64,9 @@ export function startLoop(ctx: AppContext): () => void {
         // fullscreen-triangle setup and do a standard MVP transform.
         const aspect = ctx.resolution.width / Math.max(ctx.resolution.height, 1);
         const viewProj = computeViewProj(basis, aspect);
-        ctx.meshPipeline.writeCam(viewProj, basis.ro);
+        // Reuse the existing wireframe toggle: in mesh mode it now drives the
+        // barycentric triangle-edge overlay on top of the lit surface.
+        ctx.meshPipeline.writeCam(viewProj, basis.ro, state.render.wireframe ? 1 : 0);
         const depthView = ctx.meshPipeline.ensureDepth(
           ctx.resolution.width,
           ctx.resolution.height,

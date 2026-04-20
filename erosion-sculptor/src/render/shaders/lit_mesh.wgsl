@@ -11,7 +11,11 @@
 struct MeshCamU {
   viewProj: mat4x4<f32>,
   ro: vec3<f32>,
-  _pad: f32,
+  // Wireframe toggle: 0 = lit surface only, 1 = overlay triangle edges on the
+  // lit shading. Reuses the trailing pad slot so the uniform buffer stays
+  // 80 bytes. Float (not bool) so the fragment can mix fractionally without
+  // branching, keeping dpdx/dpdy uniformity trivially valid.
+  wireframe: f32,
 };
 
 // Matches WindU in raymarch.wgsl byte-for-byte so the same uniform buffer
@@ -31,12 +35,20 @@ struct WindU {
 struct VsIn {
   @location(0) pos: vec3<f32>,
   @location(1) normal: vec3<f32>,
+  // MC emits triangle soup: each triangle's three vertices are at sequential
+  // indices in both buffers, so `vertex_index % 3` recovers the per-corner ID
+  // (0, 1, 2). That lets us synthesize barycentric coords without an extra
+  // attribute — the shader-side corner ID interpolates to real bary in the
+  // fragment stage exactly as a hand-authored `(1,0,0)/(0,1,0)/(0,0,1)`
+  // attribute would.
+  @builtin(vertex_index) vertIdx: u32,
 };
 
 struct VsOut {
   @builtin(position) pos: vec4<f32>,
   @location(0) worldPos: vec3<f32>,
   @location(1) normal: vec3<f32>,
+  @location(2) bary: vec3<f32>,
 };
 
 @vertex
@@ -45,6 +57,12 @@ fn vs_main(in: VsIn) -> VsOut {
   out.pos = U.viewProj * vec4<f32>(in.pos, 1.0);
   out.worldPos = in.pos;
   out.normal = in.normal;
+  let corner = in.vertIdx % 3u;
+  out.bary = vec3<f32>(
+    select(0.0, 1.0, corner == 0u),
+    select(0.0, 1.0, corner == 1u),
+    select(0.0, 1.0, corner == 2u),
+  );
   return out;
 }
 
@@ -136,5 +154,16 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
 
   let lit = base * (ambient + ndl * vec3<f32>(0.95, 0.92, 0.85));
   let rim = pow(1.0 - max(dot(n, viewDir), 0.0), 3.0) * 0.22;
-  return vec4<f32>(lit + vec3<f32>(rim), 1.0);
+  let surface = lit + vec3<f32>(rim);
+
+  // Triangle wireframe via distance-to-nearest-edge in barycentric space.
+  // `fwidth` gives the per-pixel magnitude of bary's change, which we use as
+  // the smoothstep width so the line thickness stays ≈1.5 pixels at any zoom
+  // level. U.wireframe ∈ {0,1} gates the overlay without a branch.
+  let e = min(in.bary.x, min(in.bary.y, in.bary.z));
+  let aa = fwidth(e) * 1.5;
+  let wire = 1.0 - smoothstep(0.0, aa, e);
+  let wireColor = vec3<f32>(0.06, 0.06, 0.08);
+  let final = mix(surface, wireColor, U.wireframe * wire);
+  return vec4<f32>(final, 1.0);
 }
