@@ -35,7 +35,7 @@ describe('buildProxyGeometry', () => {
   it('torus bbox is ±(R+tubeR) in xz, ±tubeR in y', () => {
     const prim = makePrim('torus', [0.6, 0.1]);
     const g = buildProxyGeometry(prim);
-    const { min, max } = bbox(g);
+    const { max } = bbox(g);
     expect(max[0]).toBeCloseTo(0.7, 1);
     expect(max[2]).toBeCloseTo(0.7, 1);
     expect(Math.abs(max[1])).toBeLessThanOrEqual(0.11);
@@ -65,7 +65,7 @@ describe('buildProxyGeometry', () => {
     // max[0] ≈ midpoint.x + halfLen*(1/√2) + r = 0.15+0.15+0.1 = 0.40
     const prim = makePrim('capsule', [0, 0, 0, 0.3, 0.3, 0, 0.1]);
     const g = buildProxyGeometry(prim);
-    const { min, max } = bbox(g);
+    const { max } = bbox(g);
     const halfLen = Math.hypot(0.3, 0.3) / 2;
     const midX = 0.15;
     const projX = halfLen / Math.SQRT2; // axis is at 45°
