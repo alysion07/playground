@@ -12,6 +12,12 @@ export default function App() {
   const tree = useStore((s) => s.tree);
   const fillet = useStore((s) => s.fillet);
   const applyFillet = useStore((s) => s.applyFillet);
+  const selectedId = useStore((s) => s.selectedId);
+  const gizmoMode = useStore((s) => s.gizmoMode);
+  const setGizmoMode = useStore((s) => s.setGizmoMode);
+  const setSelected = useStore((s) => s.setSelected);
+  const setTranslate = useStore((s) => s.setTranslate);
+  const setRotate = useStore((s) => s.setRotate);
 
   // Auto-recompute on input changes, debounced so continuous slider drags
   // don't queue hundreds of pipeline runs. The store's `run` guards against
@@ -39,7 +45,19 @@ export default function App() {
       </aside>
 
       <main className="flex-1 relative min-w-0">
-        <Viewport mesh={mesh} wireframe={wireframe} />
+        <Viewport
+          mesh={mesh}
+          wireframe={wireframe}
+          tree={tree}
+          selectedId={selectedId}
+          gizmoMode={gizmoMode}
+          setGizmoMode={setGizmoMode}
+          setSelected={setSelected}
+          onCommitTransform={(id, t, r) => {
+            setTranslate(id, t);
+            setRotate(id, r);
+          }}
+        />
       </main>
 
       <aside className="w-72 flex-shrink-0 border-l border-neutral-800 flex flex-col overflow-hidden">
