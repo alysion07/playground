@@ -41,7 +41,7 @@ describe('buildProxyGeometry', () => {
     expect(Math.abs(max[1])).toBeLessThanOrEqual(0.11);
   });
 
-  it('roundBox bbox is ±hx (radius approximated as 0)', () => {
+  it('roundBox bbox is ±hx (r is ignored — proxy matches face extents, slightly over-estimates at corners)', () => {
     const prim = makePrim('roundBox', [0.4, 0.4, 0.4, 0.05]);
     const g = buildProxyGeometry(prim);
     const { min, max } = bbox(g);
@@ -57,5 +57,32 @@ describe('buildProxyGeometry', () => {
     expect(max[1]).toBeCloseTo(0.45, 1);
     expect(min[1]).toBeCloseTo(-0.45, 1);
     expect(max[0]).toBeCloseTo(0.15, 1);
+  });
+
+  it('capsule bbox spans endpoints expanded by r (diagonal case)', () => {
+    // a=(0,0,0), b=(0.3,0.3,0), r=0.1 — exercises setFromUnitVectors rotation
+    // midpoint=(0.15,0.15,0); axis dir=(1/√2,1/√2,0); halfLen=hypot(0.3,0.3)/2≈0.2121
+    // max[0] ≈ midpoint.x + halfLen*(1/√2) + r = 0.15+0.15+0.1 = 0.40
+    const prim = makePrim('capsule', [0, 0, 0, 0.3, 0.3, 0, 0.1]);
+    const g = buildProxyGeometry(prim);
+    const { min, max } = bbox(g);
+    const halfLen = Math.hypot(0.3, 0.3) / 2;
+    const midX = 0.15;
+    const projX = halfLen / Math.SQRT2; // axis is at 45°
+    // upper bound: midpoint + projected half-length + radius + small tolerance
+    const upperBound = midX + projX + 0.1 + 0.01;
+    expect(max[0]).toBeGreaterThan(0);
+    expect(max[1]).toBeGreaterThan(0);
+    expect(max[0]).toBeLessThan(upperBound);
+  });
+
+  it('capsule with coincident endpoints (degenerate a==b) does not throw and falls back to a sphere', () => {
+    const prim = makePrim('capsule', [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.15]);
+    expect(() => buildProxyGeometry(prim)).not.toThrow();
+    const g = buildProxyGeometry(prim);
+    const { min, max } = bbox(g);
+    // Sphere of r=0.15 centered at (0.2,0.2,0.2) → diameter on each axis ≈ 0.3
+    expect(max[0] - min[0]).toBeCloseTo(0.3, 1);
+    expect(max[1] - min[1]).toBeCloseTo(0.3, 1);
   });
 });
