@@ -78,11 +78,14 @@ function NodeView({
 
 function AddMenu({ parent, depth }: { parent: OpNode; depth: number }) {
   const addPrimToOp = useStore((s) => s.addPrimToOp);
-  // New primitives get placed at a visible offset so they're never hidden
-  // inside pre-existing geometry. Origin defaults make them subsumed by
-  // any surrounding solid under (smooth-)union, yielding zero visible change.
-  // Stagger along +x by child-count so subsequent adds don't overlap.
-  const spawnOffset: Vec3 = [0.6 + parent.children.length * 0.3, 0, 0];
+  // Place each new primitive on a small ring in the xz plane so it stays well
+  // inside the default sampling cube (extents=1 → [-1,1]³) and doesn't pile
+  // on top of siblings. Origin defaults would be subsumed under (smooth-)union;
+  // a straight +x stagger escaped the sampling cube after a couple of adds.
+  const n = parent.children.length;
+  const angle = n * 1.2;
+  const radius = 0.55;
+  const spawnOffset: Vec3 = [Math.cos(angle) * radius, 0, Math.sin(angle) * radius];
   return (
     <div
       className="flex flex-wrap items-center gap-1 py-1 text-[10px] text-neutral-500"
