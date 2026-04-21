@@ -30,6 +30,11 @@ const TOYS = [
     dir: 'erosion-sculptor',
     base: '/erosion/',
   },
+  {
+    name: 'fillet',
+    dir: 'fillet-studio',
+    base: '/fillet/',
+  },
 ];
 
 function log(msg) {
