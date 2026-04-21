@@ -71,8 +71,11 @@ describe('buildProxyGeometry', () => {
     const projX = halfLen / Math.SQRT2; // axis is at 45°
     // upper bound: midpoint + projected half-length + radius + small tolerance
     const upperBound = midX + projX + 0.1 + 0.01;
-    expect(max[0]).toBeGreaterThan(0);
-    expect(max[1]).toBeGreaterThan(0);
+    // Lower bound rules out the unrotated case: a Y-aligned capsule merely
+    // translated to the midpoint would yield max[0] ≈ midX + r = 0.25,
+    // which is strictly < 0.30. The rotation must fire for this to pass.
+    expect(max[0]).toBeGreaterThan(0.3);
+    expect(max[1]).toBeGreaterThan(0.3);
     expect(max[0]).toBeLessThan(upperBound);
   });
 
