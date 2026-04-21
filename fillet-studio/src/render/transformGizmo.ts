@@ -167,6 +167,14 @@ export function createTransformGizmo(args: GizmoArgs): GizmoHandles {
   }
 
   function dispose() {
+    // If we dispose mid-drag (e.g., the selected prim was deleted while the
+    // user was still holding the mouse), `dragging-changed=false` will never
+    // fire. Restore orbit + release the mesh-visibility lock first so the
+    // caller's scene isn't stuck in drag state.
+    if ((controls as any).dragging === true) {
+      orbit.enabled = true;
+      onDragEnd();
+    }
     controls.removeEventListener('dragging-changed', onDraggingChanged as any);
     controls.removeEventListener('mouseUp', onMouseUp as any);
     clearProxy();
