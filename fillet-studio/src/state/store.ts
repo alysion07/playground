@@ -9,6 +9,7 @@ export type StoreState = {
   fillet: FilletParams;
   applyFillet: boolean;
   wireframe: boolean;
+  gizmoMode: 'translate' | 'rotate';
   status: ComputeStatus;
   mesh: MeshData | null;
   lastStats: { triangles: number; ms: number } | null;
@@ -25,6 +26,7 @@ export type StoreState = {
   setFillet: (patch: Partial<FilletParams>) => void;
   setApplyFillet: (v: boolean) => void;
   setWireframe: (v: boolean) => void;
+  setGizmoMode: (m: 'translate' | 'rotate') => void;
   run: () => Promise<void>;
 };
 
@@ -46,6 +48,7 @@ export const useStore = create<StoreState>((set, get) => ({
   fillet: { R: 0.08, alpha: 0.5, N: 49, extents: 1 },
   applyFillet: true,
   wireframe: false,
+  gizmoMode: 'translate',
   status: { kind: 'idle' },
   mesh: null,
   lastStats: null,
@@ -94,6 +97,7 @@ export const useStore = create<StoreState>((set, get) => ({
   setFillet: (patch) => set((s) => ({ fillet: { ...s.fillet, ...patch } })),
   setApplyFillet: (v) => set({ applyFillet: v }),
   setWireframe: (v) => set({ wireframe: v }),
+  setGizmoMode: (m) => set({ gizmoMode: m }),
 
   run: async () => {
     if (runningFlag) {
