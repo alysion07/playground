@@ -28,16 +28,21 @@
 | 6 | zustand store + UI 패널 (CSG 트리 / 필렛 / 내보내기) | ✅ |
 | 7 | GLB (GLTFExporter) + STL (binary, 직접 인코드) (+ 2 tests) | ✅ |
 | 8 | 갤러리 등록 (build.mjs + index.html) + 문서 | ✅ |
+| 9 | viewport TransformControls 기즈모 (translate/rotate, W/E/Esc, raw-prim proxy) | ✅ |
 
 ## Tests
 
-총 **26개** 통과:
+총 **42개** 통과:
 
 - `csg` (6) — 트리 불변식, updateAt/removeNode/addChild
 - `sdfCpu` (9) — 프리미티브·회전·CSG 연산의 수치 정확성
 - `curvatureFlow` (5) — 구 수축 closed-form 검증, 코너 라운딩 정성 성질
 - `marchingCubes` (4) — 빈 메시, 구 watertight + 면적 ≈ 4πr², 해상도 수렴, 노멀 방향
+- `winding-diag` (1) — MC 삼각형 와인딩 일관성
 - `stl` (2) — 바이너리 레이아웃 + 페이스 노멀 복원
+- `gizmoProxy` (7) — primitive별 proxy geometry bbox (capsule 회전·퇴화 포함)
+- `gizmoCommit` (6) — Euler XYZ ↔ Quaternion round-trip
+- `store` (2) — gizmoMode 상태가 tree/mesh 변경 없이 격리
 
 ## Future (not in v1)
 
