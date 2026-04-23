@@ -1,0 +1,1772 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0d0f13" />
+<title>Metaball Playground — 속성 학습 (모바일)</title>
+<style>
+  :root {
+    --bg: #0d0f13;
+    --bg-2: #171a21;
+    --bg-3: #0a0c10;
+    --fg: #e6e8ef;
+    --fg-dim: #9aa3b2;
+    --accent: #5ec0ff;
+    --warn: #f0b433;
+    --danger: #ff7a7a;
+    --border: #262a34;
+    --radius: 12px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  :root.light {
+    --bg: #ffffff;
+    --bg-2: #f4f5f8;
+    --bg-3: #eef0f4;
+    --fg: #1a1a1a;
+    --fg-dim: #555c68;
+    --accent: #0b7dd4;
+    --warn: #b37400;
+    --danger: #c02222;
+    --border: #dfe2e8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--fg); }
+  body {
+    margin: 0;
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    -webkit-text-size-adjust: 100%;
+    padding-bottom: 4rem;
+  }
+  @media (min-width: 720px) {
+    body { font-size: 18px; }
+  }
+
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1rem 1.1rem;
+  }
+
+  /* sticky top bar */
+  header.bar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    backdrop-filter: saturate(140%) blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 0.55rem 1.1rem;
+    display: flex; gap: 0.6rem; align-items: center;
+  }
+  header.bar h1 {
+    margin: 0; font-size: 1rem; font-weight: 600;
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  header.bar .meta { color: var(--fg-dim); font-size: 0.8rem; }
+  button.icon {
+    background: var(--bg-2); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 999px; width: 36px; height: 36px; font-size: 16px;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  }
+  button.icon:active { transform: scale(0.95); }
+
+  nav.toc {
+    display: flex; gap: 0.4rem; overflow-x: auto; padding: 0.2rem 0 0.6rem;
+    scrollbar-width: none;
+  }
+  nav.toc::-webkit-scrollbar { display: none; }
+  nav.toc a {
+    flex: 0 0 auto; padding: 0.35rem 0.7rem; border-radius: 999px;
+    background: var(--bg-2); color: var(--fg-dim);
+    text-decoration: none; font-size: 0.85rem; border: 1px solid var(--border);
+  }
+  nav.toc a:hover, nav.toc a:focus { color: var(--fg); }
+
+  section { margin: 1.6rem 0 2rem; scroll-margin-top: 72px; }
+  section > h2 {
+    font-size: 1.2rem; margin: 0 0 0.6rem;
+    display: flex; align-items: baseline; gap: 0.5rem;
+  }
+  section > h2 .num {
+    color: var(--accent); font-family: var(--mono); font-size: 0.9rem;
+  }
+  h3 { font-size: 1rem; margin: 1.2rem 0 0.4rem; }
+  p { margin: 0.5rem 0; }
+  a { color: var(--accent); }
+  strong { color: var(--fg); }
+  code, kbd {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--bg-3); padding: 0.08em 0.35em; border-radius: 4px;
+    word-break: break-word;
+  }
+  pre {
+    background: var(--bg-3); border: 1px solid var(--border);
+    padding: 0.8rem; border-radius: var(--radius);
+    overflow-x: auto; font-family: var(--mono); font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; }
+  ul { padding-left: 1.2rem; }
+  li { margin: 0.25rem 0; }
+  .muted { color: var(--fg-dim); }
+
+  .card, details.box {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 0.85rem 1rem;
+    margin: 0.6rem 0;
+  }
+  details.box > summary {
+    cursor: pointer; list-style: none; font-weight: 600;
+    padding: 0.1rem 0; user-select: none;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  details.box > summary::-webkit-details-marker { display: none; }
+  details.box > summary::before {
+    content: "▸"; color: var(--accent); transition: transform 0.15s;
+    display: inline-block;
+  }
+  details.box[open] > summary::before { transform: rotate(90deg); }
+  details.box > *:not(summary) { margin-top: 0.6rem; }
+
+  .warn {
+    border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
+    background: color-mix(in srgb, var(--warn) 8%, var(--bg-2));
+  }
+  .warn > summary { color: var(--warn); }
+
+  /* Phase checklist */
+  .checklist { list-style: none; padding: 0; margin: 0.5rem 0; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 0.6rem;
+    padding: 0.55rem 0.7rem; border: 1px solid var(--border);
+    border-radius: var(--radius); margin: 0.4rem 0; background: var(--bg-2);
+  }
+  .checklist label { flex: 1; cursor: pointer; }
+  .checklist input[type="checkbox"] {
+    width: 22px; height: 22px; margin-top: 2px; accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .checklist .dur { color: var(--fg-dim); font-size: 0.85rem; }
+
+  /* pipeline list */
+  ol.pipeline {
+    counter-reset: pipe; list-style: none; padding: 0;
+  }
+  ol.pipeline li {
+    counter-increment: pipe; position: relative; padding: 0.55rem 0 0.55rem 2.4rem;
+    border-bottom: 1px dashed var(--border);
+  }
+  ol.pipeline li:last-child { border-bottom: none; }
+  ol.pipeline li::before {
+    content: counter(pipe);
+    position: absolute; left: 0; top: 0.55rem;
+    width: 1.7rem; height: 1.7rem; border-radius: 50%;
+    background: var(--bg-3); border: 1px solid var(--accent); color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 0.8rem;
+  }
+  ol.pipeline .tag {
+    display: inline-block; font-family: var(--mono); font-size: 0.72rem;
+    padding: 0.05rem 0.45rem; border-radius: 4px; margin-right: 0.4rem;
+    vertical-align: baseline;
+  }
+  ol.pipeline .tag.cpu { background: #2b2336; color: #e7b0ff; border: 1px solid #5a3a7a; }
+  ol.pipeline .tag.gpu { background: #1a2d33; color: #8fd8e8; border: 1px solid #2e5b67; }
+  :root.light ol.pipeline .tag.cpu { background: #f0e6f8; color: #5b2a85; border-color: #c7a8e2; }
+  :root.light ol.pipeline .tag.gpu { background: #e0f1f6; color: #0b5a70; border-color: #85c5d4; }
+
+  /* file map as cards */
+  .files { display: grid; gap: 0.4rem; }
+  .file {
+    display: flex; gap: 0.5rem; padding: 0.5rem 0.7rem;
+    background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+    align-items: center;
+  }
+  .file .path {
+    font-family: var(--mono); font-size: 0.8rem;
+    color: var(--accent); word-break: break-all;
+    flex: 1; text-decoration: none;
+  }
+  .file .role { color: var(--fg-dim); font-size: 0.82rem; flex-basis: 100%; margin-left: 0; }
+  @media (min-width: 480px) {
+    .file { flex-wrap: wrap; }
+  }
+
+  /* flashcards */
+  .cards { display: grid; gap: 0.6rem; }
+  .flash {
+    background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 0.95rem 1rem; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .flash:hover { border-color: var(--accent); }
+  .flash .q {
+    font-weight: 600;
+    display: flex; align-items: flex-start; gap: 0.5rem;
+  }
+  .flash .q::before {
+    content: "Q"; color: var(--accent); font-family: var(--mono);
+    font-size: 0.8rem; background: var(--bg-3); border: 1px solid var(--border);
+    padding: 0.05rem 0.4rem; border-radius: 4px;
+    flex: 0 0 auto; margin-top: 2px;
+  }
+  .flash .a {
+    max-height: 0; overflow: hidden; transition: max-height 0.25s ease;
+    color: var(--fg-dim);
+  }
+  .flash.open .a {
+    max-height: 800px;
+    margin-top: 0.6rem; padding-top: 0.6rem;
+    border-top: 1px dashed var(--border);
+    color: var(--fg);
+  }
+  .flash .level {
+    display: inline-block; font-family: var(--mono); font-size: 0.7rem;
+    padding: 0.05rem 0.45rem; border-radius: 999px; margin-left: auto;
+    color: var(--fg-dim); border: 1px solid var(--border);
+  }
+
+  /* notes textarea */
+  textarea.notes {
+    width: 100%; min-height: 140px; resize: vertical;
+    background: var(--bg-2); color: var(--fg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 0.7rem 0.9rem;
+    font: inherit; line-height: 1.55;
+  }
+  textarea.notes:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .saved-hint { color: var(--fg-dim); font-size: 0.78rem; margin-top: 0.3rem; }
+
+  /* progress bar */
+  .progress-wrap {
+    height: 6px; background: var(--bg-3); border-radius: 999px; overflow: hidden;
+    margin: 0.4rem 0 0.8rem;
+  }
+  .progress-wrap > div {
+    height: 100%; background: var(--accent); width: 0%;
+    transition: width 0.2s;
+  }
+
+  footer.foot {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border);
+    color: var(--fg-dim); font-size: 0.8rem; text-align: center;
+  }
+
+  /* small-screen polish */
+  @media (max-width: 440px) {
+    main { padding: 0.8rem 0.9rem; }
+    section > h2 { font-size: 1.1rem; }
+    pre { font-size: 0.82rem; padding: 0.65rem; }
+  }
+
+  /* SVG 시각화 */
+  .viz {
+    width: 100%; max-width: 480px; height: auto;
+    display: block; margin: 0.6rem auto 0.1rem;
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .viz-cap {
+    text-align: center; color: var(--fg-dim);
+    font-size: 0.76rem; margin: 0 auto 0.2rem;
+    max-width: 480px;
+  }
+
+  /* 코드 뷰어 */
+  .code-viewer { margin-top: 0.4rem; }
+  .code-toolbar {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding-bottom: 0.45rem; margin-bottom: 0.45rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .code-toolbar .tabs {
+    display: flex; gap: 0.3rem; overflow-x: auto;
+    flex: 1; scrollbar-width: none;
+  }
+  .code-toolbar .tabs::-webkit-scrollbar { display: none; }
+  .code-toolbar .tab {
+    flex: 0 0 auto; padding: 0.38rem 0.7rem;
+    border: 1px solid var(--border); background: var(--bg-2);
+    color: var(--fg-dim); border-radius: 999px;
+    font-family: var(--mono); font-size: 0.74rem; cursor: pointer;
+    white-space: nowrap;
+  }
+  .code-toolbar .tab.active {
+    background: color-mix(in srgb, var(--accent) 15%, var(--bg-2));
+    color: var(--accent); border-color: var(--accent);
+  }
+  .code-toolbar .note-toggle {
+    flex: 0 0 auto; padding: 0.36rem 0.6rem;
+    background: var(--bg-2); color: var(--fg-dim);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.74rem; cursor: pointer; font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .code-toolbar .note-toggle.active {
+    background: color-mix(in srgb, var(--warn) 18%, var(--bg-2));
+    color: var(--warn); border-color: var(--warn);
+  }
+  .code-viewer .pane { display: none; }
+  .code-viewer .pane.active { display: block; }
+  .code-block {
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 0.4rem 0;
+    font-family: var(--mono); font-size: 0.82rem; line-height: 1.55;
+    overflow: hidden;
+  }
+  .code-line {
+    display: flex; gap: 0.55rem; padding: 0 0.45rem;
+    scroll-margin-top: 90px; position: relative;
+  }
+  .code-line:target, .code-line.focused {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .code-line .ln {
+    flex: 0 0 2.2rem; text-align: right; color: var(--fg-dim);
+    user-select: none; font-size: 0.72rem; padding: 0.08rem 0.4rem 0 0;
+    border-right: 1px solid var(--border); cursor: pointer;
+  }
+  .code-line .txt {
+    flex: 1; white-space: pre-wrap; word-break: break-word;
+    padding: 0.02rem 0.3rem 0 0;
+  }
+  .code-line.has-note .ln::after {
+    content: "•"; color: var(--warn); margin-left: 0.2em;
+  }
+  .code-note {
+    display: none;
+    margin: 0.15rem 0.45rem 0.4rem 2.9rem;
+    padding: 0.55rem 0.75rem;
+    background: color-mix(in srgb, var(--warn) 9%, var(--bg-2));
+    border-left: 3px solid var(--warn);
+    border-radius: 4px;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+    font-size: 0.84rem; line-height: 1.55;
+    white-space: pre-wrap;
+  }
+  .code-note code {
+    font-size: 0.9em; background: var(--bg-3);
+  }
+  .code-viewer.show-notes .code-note { display: block; }
+
+  .tok-comment  { color: var(--fg-dim); font-style: italic; }
+  .tok-string   { color: #a3d977; }
+  .tok-number   { color: #f0b433; }
+  .tok-keyword  { color: #d39bf0; }
+  .tok-type     { color: #7cc4ff; }
+  .tok-function { color: #ffc774; }
+  .tok-macro    { color: #ff9e7a; }
+  :root.light .tok-string   { color: #2e7d32; }
+  :root.light .tok-keyword  { color: #6622bb; }
+  :root.light .tok-type     { color: #0b5a9e; }
+  :root.light .tok-function { color: #a65a00; }
+  :root.light .tok-macro    { color: #b0461c; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <h1>Metaball <span class="meta">· Week 1 · 2D</span></h1>
+  <button class="icon" id="theme-toggle" type="button" aria-label="테마 전환" title="테마 전환">◐</button>
+</header>
+
+<main>
+  <nav class="toc" aria-label="섹션 이동">
+    <a href="#plan">플랜</a>
+    <a href="#summary">요약</a>
+    <a href="#flow">데이터 흐름</a>
+    <a href="#concepts">3대 개념</a>
+    <a href="#not-yet">없는 것</a>
+    <a href="#files">파일</a>
+    <a href="#shader">셰이더</a>
+    <a href="#ts">TS</a>
+    <a href="#cards">플래시카드</a>
+    <a href="#code">원본 코드</a>
+    <a href="#weak">약점</a>
+  </nav>
+
+  <section id="plan">
+    <h2><span class="num">§0</span> 3~4시간 플랜</h2>
+    <div class="progress-wrap"><div id="progress"></div></div>
+    <ul class="checklist" id="phases">
+      <li>
+        <input type="checkbox" data-key="phase-1" id="p1" />
+        <label for="p1"><strong>Phase 1 — 감 잡기</strong> <span class="dur">· 45분</span><br/>
+          <span class="muted">이 페이지 §1~§3 + 브라우저 데모 조작</span>
+        </label>
+      </li>
+      <li>
+        <input type="checkbox" data-key="phase-2" id="p2" />
+        <label for="p2"><strong>Phase 2 — 셰이더 정독</strong> <span class="dur">· 75분</span><br/>
+          <span class="muted">§7 순서대로 <code>metaball.glsl</code> 섹션별</span>
+        </label>
+      </li>
+      <li>
+        <input type="checkbox" data-key="phase-3" id="p3" />
+        <label for="p3"><strong>Phase 3 — TS 파이프라인</strong> <span class="dur">· 45분</span><br/>
+          <span class="muted">§8 · bootstrap → loop → store → physics</span>
+        </label>
+      </li>
+      <li>
+        <input type="checkbox" data-key="phase-4" id="p4" />
+        <label for="p4"><strong>Phase 4 — 빈틈 점검</strong> <span class="dur">· 30~45분</span><br/>
+          <span class="muted">§9 플래시카드 8개 · 본인 말로 답 → 뒤집어 확인</span>
+        </label>
+      </li>
+    </ul>
+  </section>
+
+  <section id="summary">
+    <h2><span class="num">§1</span> 30초 요약</h2>
+    <div class="card">
+      <p><strong>뭘 하는 토이?</strong> 여러 블롭(원)이 서로 붙어 녹듯 합쳐지는 2D 화면.</p>
+      <p><strong>어떻게?</strong> 각 블롭을 원의 SDF로 표현 → <code>smooth-min</code>으로 합산 → 화면 전체를 덮는 프래그먼트 셰이더 한 장이 픽셀마다 직접 색 계산.</p>
+      <p><strong>왜 이 기법?</strong> 메시 변형으로 "녹는 경계"를 그리려면 지옥. SDF는 거리 함수 하나로 합집합·AA·rim·bloom을 전부 처리.</p>
+    </div>
+  </section>
+
+  <section id="flow">
+    <h2><span class="num">§2</span> 데이터 흐름 (한 프레임)</h2>
+    <ol class="pipeline">
+      <li><span class="tag cpu">CPU</span><code>appStore</code>가 blob 배열 보관 (pos, radius, color).</li>
+      <li><span class="tag cpu">CPU</span><code>physics.step</code>이 position-Verlet으로 좌표 갱신. 중력·인력·포인터·경계.</li>
+      <li><span class="tag cpu">CPU</span><code>loop.ts</code>가 blob 값을 <code>uniforms</code>에 복사 (<code>uBlobsXYZR</code>, <code>uColors</code>, 그리고 <code>uK</code>·<code>uAA</code> 등).</li>
+      <li><span class="tag gpu">GPU</span>풀스크린 삼각형 1개 드로우콜. 버텍스는 좌표만 통과.</li>
+      <li><span class="tag gpu">GPU</span>프래그먼트 셰이더가 픽셀마다:
+        <code>d = smin(d, sdCircle(p, b.xy, b.z), k)</code>을 블롭 개수만큼.</li>
+      <li><span class="tag gpu">GPU</span><code>mask = 1 - smoothstep(0, aa, d)</code> + 거리 기반 rim/bloom + vignette → 픽셀 색.</li>
+    </ol>
+    <p class="muted">매 프레임 1~6을 반복. 블롭 개수만큼 픽셀당 루프 — fragment 비용이 O(N).</p>
+  </section>
+
+  <section id="concepts">
+    <h2><span class="num">§3</span> 3대 개념</h2>
+
+    <details class="box" open>
+      <summary>SDF (Signed Distance Field)</summary>
+      <p>점 <code>p</code>에서 가장 가까운 표면까지의 <strong>부호 있는 거리</strong> <code>d(p)</code>.</p>
+      <ul>
+        <li>표면 = <code>d=0</code>, 안쪽 = 음수, 바깥 = 양수</li>
+        <li>원 SDF: <code>sdCircle(p, c, r) = |p - c| - r</code></li>
+        <li>여러 SDF의 <code>min</code> = 합집합 (union)</li>
+        <li>거리 함수 하나로 합성·AA·rim·shadow 모두 가능</li>
+      </ul>
+      <svg class="viz" viewBox="0 0 260 150" role="img" aria-label="SDF 거리장: 원 중심에서 거리 등고선">
+        <rect x="0" y="0" width="260" height="150" fill="#0a0c10"/>
+        <circle cx="85" cy="75" r="62" fill="none" stroke="#5ec0ff" stroke-opacity="0.15" stroke-dasharray="3,3"/>
+        <circle cx="85" cy="75" r="52" fill="none" stroke="#5ec0ff" stroke-opacity="0.25" stroke-dasharray="3,3"/>
+        <circle cx="85" cy="75" r="42" fill="none" stroke="#5ec0ff" stroke-opacity="0.4" stroke-dasharray="3,3"/>
+        <circle cx="85" cy="75" r="32" fill="none" stroke="#5ec0ff" stroke-width="2.4"/>
+        <circle cx="85" cy="75" r="20" fill="#f0b433" fill-opacity="0.14" stroke="#f0b433" stroke-opacity="0.55" stroke-dasharray="2.5,3"/>
+        <circle cx="85" cy="75" r="8" fill="#f0b433" fill-opacity="0.35"/>
+        <text x="85" y="78" fill="#f0b433" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">c</text>
+        <line x1="150" y1="55" x2="114" y2="62" stroke="#ff7a7a" stroke-width="1.2" stroke-dasharray="2,2"/>
+        <circle cx="150" cy="55" r="2.8" fill="#ff7a7a"/>
+        <text x="154" y="52" fill="#ff7a7a" font-size="10" font-family="ui-monospace,monospace">p</text>
+        <text x="118" y="48" fill="#ff7a7a" font-size="9" font-family="ui-monospace,monospace">d(p) &gt; 0</text>
+        <g font-size="9" font-family="ui-monospace,monospace">
+          <line x1="170" y1="85" x2="185" y2="85" stroke="#5ec0ff" stroke-width="2.4"/>
+          <text x="190" y="88" fill="#5ec0ff">d = 0  (표면)</text>
+          <line x1="170" y1="100" x2="185" y2="100" stroke="#5ec0ff" stroke-opacity="0.45" stroke-dasharray="3,3"/>
+          <text x="190" y="103" fill="#5ec0ff" fill-opacity="0.75">d &gt; 0  (바깥)</text>
+          <line x1="170" y1="115" x2="185" y2="115" stroke="#f0b433" stroke-opacity="0.6" stroke-dasharray="2.5,3"/>
+          <text x="190" y="118" fill="#f0b433">d &lt; 0  (내부)</text>
+        </g>
+      </svg>
+      <div class="viz-cap">SDF = 점 p에서 가장 가까운 표면까지의 부호 있는 거리. 등고선 = 같은 거리의 궤적.</div>
+    </details>
+
+    <details class="box">
+      <summary>Smooth-min (polynomial)</summary>
+<pre><code>h = max(k - |a - b|, 0) / k
+smin(a, b, k) = min(a, b) - h² · k · 0.25</code></pre>
+      <ul>
+        <li><code>k = 0</code>이면 순수 <code>min</code> (경계 꺾임)</li>
+        <li><code>k</code>가 클수록 두 SDF가 <code>k</code>만큼 떨어져 있을 때부터 섞이기 시작 → "더 멀리서부터 끈적하게 붙음"</li>
+        <li>감소량 <code>h²·k/4</code> ≤ <code>k/4</code> — 원래 <code>min</code>보다 살짝만 더 작게 빠져 SDF 성질 유지</li>
+        <li>이 코드의 <code>uK</code> = <code>0.001 + blobSmoothness × 0.5</code> (world units)</li>
+      </ul>
+      <svg class="viz" viewBox="0 0 280 160" role="img" aria-label="smooth-min vs min 그래프">
+        <rect x="0" y="0" width="280" height="160" fill="#0a0c10"/>
+        <line x1="20" y1="130" x2="272" y2="130" stroke="#262a34" stroke-width="1"/>
+        <line x1="20" y1="16" x2="20" y2="134" stroke="#262a34" stroke-width="1"/>
+        <text x="14" y="24" fill="#9aa3b2" font-size="8" text-anchor="end" font-family="ui-monospace,monospace">d</text>
+        <text x="270" y="144" fill="#9aa3b2" font-size="8" text-anchor="end" font-family="ui-monospace,monospace">x (공간)</text>
+        <polyline points="20,70 70,130 260,30" fill="none" stroke="#f0b433" stroke-opacity="0.5" stroke-width="1.3" stroke-dasharray="4,3"/>
+        <text x="252" y="28" fill="#f0b433" font-size="9" text-anchor="end" font-family="ui-monospace,monospace">d_a</text>
+        <polyline points="20,30 210,130 265,92" fill="none" stroke="#ff7a7a" stroke-opacity="0.5" stroke-width="1.3" stroke-dasharray="4,3"/>
+        <text x="30" y="28" fill="#ff7a7a" font-size="9" font-family="ui-monospace,monospace">d_b</text>
+        <polyline points="70,130 140,94 210,130" fill="none" stroke="#9aa3b2" stroke-width="1.8"/>
+        <text x="140" y="86" fill="#9aa3b2" font-size="9" text-anchor="middle">min (교차에서 꺾임)</text>
+        <path d="M 70,130 Q 140,150 210,130" fill="none" stroke="#5ec0ff" stroke-width="2.4"/>
+        <text x="140" y="155" fill="#5ec0ff" font-size="9" text-anchor="middle">smin (k 구간에서 아래로 녹음)</text>
+        <line x1="105" y1="108" x2="175" y2="108" stroke="#5ec0ff" stroke-opacity="0.3" stroke-width="0.8" stroke-dasharray="2,2"/>
+        <text x="140" y="105" fill="#5ec0ff" fill-opacity="0.7" font-size="8" text-anchor="middle" font-family="ui-monospace,monospace">|a−b| &lt; k</text>
+      </svg>
+      <div class="viz-cap">회색 = min (두 SDF 하단 envelope · 꺾임) · 파랑 = smin (경계가 안쪽으로 녹음 → "붙는" 효과)</div>
+    </details>
+
+    <details class="box">
+      <summary>Full-screen triangle + fragment-only</summary>
+      <ul>
+        <li>삼각형 <strong>1개</strong>로 <code>[-1, 3]²</code> 영역을 덮고 NDC <code>[-1, 1]²</code>만 scissor</li>
+        <li>쿼드(삼각형 2개)보다 대각선 경계에서 overdraw·이음새 없음</li>
+        <li>버텍스 셰이더는 단순 통과만 — <strong>실제 그림은 fragment shader 혼자</strong></li>
+        <li><code>depthTest: false</code>, <code>depthWrite: false</code> (깊이 없음)</li>
+      </ul>
+      <svg class="viz" viewBox="-2 -2 6 6" role="img" aria-label="풀스크린 삼각형과 NDC 화면 영역">
+        <rect x="-2" y="-2" width="6" height="6" fill="#0a0c10"/>
+        <polygon points="-1,-1 3,-1 -1,3" fill="#5ec0ff" fill-opacity="0.18" stroke="#5ec0ff" stroke-width="0.045"/>
+        <circle cx="-1" cy="-1" r="0.08" fill="#5ec0ff"/>
+        <circle cx="3" cy="-1" r="0.08" fill="#5ec0ff"/>
+        <circle cx="-1" cy="3" r="0.08" fill="#5ec0ff"/>
+        <text x="-1.1" y="-1.2" fill="#5ec0ff" font-size="0.3" text-anchor="end" font-family="ui-monospace,monospace">(-1,-1)</text>
+        <text x="3.12" y="-1.2" fill="#5ec0ff" font-size="0.3" font-family="ui-monospace,monospace">(3,-1)</text>
+        <text x="-1.1" y="3.1" fill="#5ec0ff" font-size="0.3" text-anchor="end" font-family="ui-monospace,monospace">(-1,3)</text>
+        <rect x="-1" y="-1" width="2" height="2" fill="#f0b433" fill-opacity="0.22" stroke="#f0b433" stroke-width="0.07" stroke-dasharray="0.14,0.1"/>
+        <text x="0" y="-0.12" fill="#f0b433" font-size="0.32" text-anchor="middle" font-family="ui-monospace,monospace">NDC [-1,1]²</text>
+        <text x="0" y="0.3" fill="#f0b433" font-size="0.22" text-anchor="middle">실제 화면 (scissor)</text>
+        <line x1="1" y1="-1" x2="-1" y2="1" stroke="#ff7a7a" stroke-width="0.04" stroke-opacity="0.35" stroke-dasharray="0.1,0.08"/>
+        <text x="1.1" y="0.08" fill="#ff7a7a" font-size="0.22" fill-opacity="0.7">쿼드였다면 이 대각선에 이음새</text>
+      </svg>
+      <div class="viz-cap">파랑 삼각형 1개가 노랑 NDC를 완전히 덮음 · 쿼드의 대각선 이음새 없음</div>
+    </details>
+  </section>
+
+  <section id="not-yet">
+    <h2><span class="num">§4</span> 현재 코드가 <em>아직</em> 안 하는 것</h2>
+    <details class="box warn" open>
+      <summary>오해 주의</summary>
+      <ul>
+        <li><strong>Raymarching 아님</strong> — 2D 화면 공간이라 픽셀 당 <code>d(p)</code> 한 번이면 끝. 3D sphere tracing은 Week 2+ 로드맵.</li>
+        <li><strong>WebGPU 미사용</strong> — <code>metaball.wgsl</code>은 Week 2 포팅 참조용. 지금은 <code>renderer.ts</code>에서 <code>backend: 'webgl2'</code> 고정, 실제 셰이더는 <code>metaball.glsl</code>.</li>
+        <li><strong>진짜 3D normal 계산 없음</strong> — rim/bloom은 <code>d</code> 기반 근사. ∇d를 유한차분으로 구해 normal 뽑는 건 3D 토이에서 등장.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="files">
+    <h2><span class="num">§5</span> 파일 지도</h2>
+    <p class="muted">탭 가능한 경로는 §9 "원본 코드" 탭으로 점프. 나머지는 §9 임베드 대상 아님.</p>
+    <div class="files">
+      <div class="file">
+        <a class="path" href="#f-glsl">src/render/shaders/metaball.glsl</a>
+        <div class="role">실제 프래그먼트 셰이더. Phase 2의 주 무대. 78줄.</div>
+      </div>
+      <div class="file">
+        <span class="path" style="color: var(--fg-dim)">src/render/shaders/metaball.wgsl</span>
+        <div class="role">Week 2 WebGPU 포팅용 참고본. 하드코딩 3블롭. 지금은 미사용.</div>
+      </div>
+      <div class="file">
+        <a class="path" href="#f-mat">src/render/material.ts</a>
+        <div class="role">ShaderMaterial + uniform 정의. GLSL <code>uniform</code>과 1:1.</div>
+      </div>
+      <div class="file">
+        <a class="path" href="#f-fsq">src/render/fullscreen-quad.ts</a>
+        <div class="role">[-1,-1],[3,-1],[-1,3] 삼각형. 왜 그 좌표인지는 §3 참고.</div>
+      </div>
+      <div class="file">
+        <span class="path" style="color: var(--fg-dim)">src/render/renderer.ts</span>
+        <div class="role">WebGPU 감지만 하고 WebGL2 고정. dpr 캡 1.5.</div>
+      </div>
+      <div class="file">
+        <a class="path" href="#f-boot">src/app/bootstrap.ts</a>
+        <div class="role">renderer + material + scene + pointer + UI 조립.</div>
+      </div>
+      <div class="file">
+        <a class="path" href="#f-loop">src/app/loop.ts</a>
+        <div class="role">한 프레임: physics → uniform 복사 → renderer.render.</div>
+      </div>
+      <div class="file">
+        <a class="path" href="#f-store">src/state/store.ts</a>
+        <div class="role">zustand. <code>MAX_BLOBS = 32</code>, 기본 6개.</div>
+      </div>
+      <div class="file">
+        <a class="path" href="#f-phys">src/sim/physics.ts</a>
+        <div class="role">position-Verlet. 중력/인력/포인터/경계. <code>FIXED_DT = 1/120</code>.</div>
+      </div>
+      <div class="file">
+        <span class="path" style="color: var(--fg-dim)">src/sim/blob.ts</span>
+        <div class="role">blob 생성. <code>mass = r²</code>.</div>
+      </div>
+      <div class="file">
+        <span class="path" style="color: var(--fg-dim)">src/util/smin.ts</span>
+        <div class="role">CPU 버전 smin. 셰이더와 수식 동일 — 테스트용.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="shader">
+    <h2><span class="num">§6</span> 셰이더 섹션 포인터</h2>
+    <p class="muted">Phase 2: <code>metaball.glsl</code>을 위→아래로. 각 덩어리에서 스스로 던질 질문.</p>
+
+    <details class="box">
+      <summary>1~22줄 · uniform 블록</summary>
+      <ul>
+        <li><code>MAX_BLOBS</code>가 <code>#ifndef</code>로 주입됨 — <code>material.ts</code>의 <code>defines</code>에서 넘어옴</li>
+        <li><code>uniform vec4 uBlobsXYZR[MAX_BLOBS]</code>에서 <code>xy = pos</code>, <code>z = radius</code>, <code>w = unused</code></li>
+        <li>Q: 왜 <code>vec3</code> 배열 + 별도 radius uniform 대신 <code>vec4</code>로? (힌트: std140 padding)</li>
+      </ul>
+    </details>
+
+    <details class="box">
+      <summary>23~31줄 · sdCircle + smin</summary>
+      <ul>
+        <li><code>sdCircle</code>은 벡터 2개 빼고 길이 재고 <code>r</code> 빼면 끝 — 3줄</li>
+        <li><code>smin</code>은 §3의 polynomial 공식 그대로</li>
+        <li>Q: <code>k &lt;= 0</code> 예외 처리가 왜 필요? (0으로 나누기 방지 + 순수 <code>min</code> 유지)</li>
+      </ul>
+    </details>
+
+    <details class="box">
+      <summary>33~36줄 · NDC → world p</summary>
+      <ul>
+        <li><code>vNdc</code>는 <code>[-1, 1]</code>. 거기에 <code>aspect</code>와 <code>0.5</code>를 곱해 world 좌표로</li>
+        <li>Q: <code>aspect</code>를 <code>x</code>에만 곱하는 이유? (세로 기준 정사각 단위 만들기)</li>
+      </ul>
+    </details>
+
+    <details class="box">
+      <summary>38~51줄 · 블롭 합성 루프</summary>
+      <ul>
+        <li><code>for (int i = 0; i &lt; MAX_BLOBS; i++) if (i &gt;= count) break;</code> 패턴</li>
+        <li>Q: 왜 <code>i &lt; count</code>로 안 하고 이렇게? (GLSL의 uniform array 루프는 상수 bound 요구 — 옛 관행)</li>
+        <li>색은 <code>exp(-max(d_i, 0) · softness)</code> 가중치로 합산 → 가까운 블롭이 지배</li>
+      </ul>
+    </details>
+
+    <details class="box">
+      <summary>53~77줄 · mask / rim / bloom / vignette</summary>
+      <ul>
+        <li><code>inside = 1 - smoothstep(0, aaWorld, d)</code> — AA 적용된 내부 마스크</li>
+        <li><code>rim</code>: <code>exp(-(d/aaWorld·6)²)</code> — <code>d</code>가 0 근처(경계)일 때만 밝음. 3D rim이 아님</li>
+        <li><code>bloom</code>: <code>exp(-max(d,0)·scale)</code> — 경계 바깥으로 발광 근사</li>
+        <li><code>vignette</code>: NDC 길이 기반 어두워짐</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="ts">
+    <h2><span class="num">§7</span> TS 파이프라인 포인터</h2>
+
+    <details class="box">
+      <summary>bootstrap.ts — 조립 순서</summary>
+      <ol>
+        <li><code>hydrateFromUrl()</code> — URL 쿼리 → store</li>
+        <li><code>createRenderer(canvas)</code> — WebGL2 고정</li>
+        <li><code>createMetaballMaterial(backend)</code> — uniform 초기값 생성</li>
+        <li><code>createFullscreenQuad(material)</code> — 삼각형 mesh + scene</li>
+        <li><code>installResize</code>, <code>installPointer</code>, <code>mountControls</code></li>
+      </ol>
+    </details>
+
+    <details class="box">
+      <summary>loop.ts — 한 프레임 안 순서</summary>
+      <ol>
+        <li><code>dt</code> 계산 (최대 50ms 클램프)</li>
+        <li><code>appStore.getState()</code></li>
+        <li><code>step(dt, sim, blobs, BOUNDS, pointer)</code> — Verlet</li>
+        <li>scalar uniform 복사: <code>uCount</code>, <code>uK</code>, <code>uAA</code>, …</li>
+        <li>배열 uniform 복사: <code>uBlobsXYZR[i].set(x, y, r, 0)</code>, <code>uColors[i].set(r,g,b)</code></li>
+        <li><code>renderer.render(scene, camera)</code></li>
+      </ol>
+      <p class="muted">Q: store 변경이 즉시 GPU에 반영되나? → <em>아니다</em>. 다음 프레임 loop가 읽어 복사할 때 반영.</p>
+    </details>
+
+    <details class="box">
+      <summary>physics.ts — position-Verlet</summary>
+      <ul>
+        <li>velocity를 따로 저장 안 함 → <code>v ≈ (pos - prev) / h</code></li>
+        <li>업데이트: <code>new_pos = pos + (pos - prev) · damp + a · h²</code></li>
+        <li>서브스텝: 최대 3회, <code>FIXED_DT = 1/120</code>으로 쪼갬</li>
+        <li>Q: 왜 Verlet? → 에너지 보존이 Euler보다 우월. 드롭 프레임에도 튀지 않음.</li>
+      </ul>
+    </details>
+
+    <details class="box">
+      <summary>material.ts — uniform 계약</summary>
+      <ul>
+        <li>TS <code>Vector4</code> ↔ GLSL <code>vec4</code> — three가 알아서 매핑</li>
+        <li><code>uBlobsXYZR</code> 배열은 <code>MAX_BLOBS</code> 길이로 미리 할당 → 런타임엔 덮어쓰기만</li>
+        <li><code>MAX_BLOBS</code>는 <code>defines</code>로 GLSL에 주입 (컴파일 타임 상수)</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="cards">
+    <h2><span class="num">§8</span> 플래시카드 (Q 탭 → A)</h2>
+    <p class="muted">먼저 본인 머릿속에서 2~4문장으로 답 → 탭해서 확인.</p>
+    <div class="cards" id="flash-cards">
+      <div class="flash">
+        <div class="q">SDF가 뭔가요? 왜 블롭에 자연스러운 선택인가요? <span class="level">L1</span></div>
+        <div class="a">점 <code>p</code>에서 가장 가까운 표면까지의 <strong>부호 있는 거리 d(p)</strong>. 표면 <code>d=0</code>, 안쪽 음수, 바깥 양수. 여러 SDF의 <code>min</code>이 합집합이고, <code>smooth-min</code>으로 바꾸면 경계가 녹아 "붙는" 효과가 됨 — 블롭의 본질. 메시 변형보다 연산·합성·AA 모두 거리 함수 하나로 처리.</div>
+      </div>
+      <div class="flash">
+        <div class="q">풀스크린 삼각형 1개가 쿼드(삼각형 2개)보다 좋은 점? <span class="level">L1</span></div>
+        <div class="a">쿼드는 대각선에서 래스터라이저가 두 삼각형 경계 픽셀을 중복 shading해 overdraw·미세 이음새 가능. 삼각형 1개(<code>[-1,-1],[3,-1],[-1,3]</code>)는 NDC <code>[-1,1]²</code>을 완전히 덮고 scissor만 → 경계선 자체가 없음. GPU 파이프라인 관점에서 더 빠르고 깔끔.</div>
+      </div>
+      <div class="flash">
+        <div class="q">smin과 min의 차이? k의 의미? <span class="level">L1</span></div>
+        <div class="a"><code>min</code>은 두 SDF 교차에서 경계가 꺾여 날카로운 union. <code>smin</code>은 <code>h = max(k-|a-b|, 0)/k</code>, <code>min(a,b) - h²k/4</code>로 근방에서 부드럽게 함몰. <code>k</code> = smoothness (world units); 0이면 순수 <code>min</code>, 커질수록 두 SDF가 <code>k</code>만큼 떨어져 있을 때부터 섞이기 시작 → "더 멀리서 끈적하게".</div>
+      </div>
+      <div class="flash">
+        <div class="q">블롭 N개 화면 W×H일 때 프레임당 sdCircle 호출 수는? <span class="level">L2</span></div>
+        <div class="a">픽셀마다 <code>for</code>가 N회 → <code>W × H × N</code>. 1920×1080, N=10이면 ~2천만 회/프레임. GPU가 병렬이라 실시간이지만 픽셀당 O(N)이라 블롭 수가 <strong>fragment 비용에 직결</strong>.</div>
+      </div>
+      <div class="flash">
+        <div class="q">uBlobsXYZR는 vec4인데 w는 어디 쓰나? 왜 낭비처럼 해둔 것 같나? <span class="level">L2</span></div>
+        <div class="a">현재 <code>w</code>는 unused. std140 UBO 레이아웃에서 <code>vec3</code> 배열은 원소마다 16바이트로 패딩됨 — 어차피 <code>vec4</code> 공간을 먹음. 그래서 명시적 <code>vec4</code>로 쓰고 <code>w</code>는 미래 확장 슬롯(예: blob 타입 플래그, fade 값)으로 보존. 메모리 낭비 아님.</div>
+      </div>
+      <div class="flash">
+        <div class="q">이 코드의 rim/bloom은 3D 모델의 rim/bloom과 뭐가 다른가? <span class="level">L2</span></div>
+        <div class="a">3D rim은 surface normal과 view 벡터의 <code>dot</code>으로 엣지 판정. 여기엔 normal도 view도 없고 오직 SDF <code>d</code>값. <code>exp(-(d/aaWorld·6)²)</code>로 <code>d</code>가 0 근처(경계 근방)일 때만 밝아지도록 근사. bloom도 post-process blur 아닌 <code>exp(-max(d,0)·scale)</code>로 경계 바깥 발광 근사. 전부 <strong>거리 기반 가짜 효과</strong>.</div>
+      </div>
+      <div class="flash">
+        <div class="q">블롭 10 → 100개일 때 병목은? 어떻게 확인? <span class="level">L3</span></div>
+        <div class="a">픽셀당 O(N) 루프니 <strong>fragment-bound</strong> 가능성이 가장 큼. uniform 업로드는 <code>vec4×100</code> = 400 floats/프레임으로 무시 수준. 확인법: <code>dpr</code>을 1.5 → 0.5로 낮춰 렌더 픽셀을 감소시키고 프레임타임이 선형으로 회복되면 fragment 확정. 브라우저 GPU 프로파일러(Perf → GPU)로도 확인 가능.</div>
+      </div>
+      <div class="flash">
+        <div class="q">WebGL2 → WebGPU 전환 시 셰이더 두 파일 동기화 전략? <span class="level">L3</span></div>
+        <div class="a">런타임 GLSL→WGSL 번역은 기능·정밀도 차이 때문에 비현실적. 작은 프로젝트는 <strong>수동 동기화 + CPU 참조 구현 테스트</strong> (이 repo의 <code>util/smin.ts</code>)로 두 경로를 같은 값에 맞춤. 규모 커지면 SDF 조합을 AST/JSON 중간표현으로 두고 언어별 템플릿에 주입 (erosion-sculptor의 <code>sdfGen.ts</code>가 그 방향).</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2><span class="num">§9</span> 원본 코드 (상세 주석)</h2>
+    <p class="muted">파일 탭 전환 · 줄 번호 옆 <span style="color: var(--warn)">•</span> = 주석 있음 · 우측 <kbd>💬 주석</kbd>로 모두 펼침/접음 · 긴 줄은 자동 줄바꿈.</p>
+    <div class="code-viewer" id="viewer">
+      <div class="code-toolbar">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-pane="f-glsl" type="button">metaball.glsl</button>
+          <button class="tab" data-pane="f-loop" type="button">loop.ts</button>
+          <button class="tab" data-pane="f-mat" type="button">material.ts</button>
+          <button class="tab" data-pane="f-fsq" type="button">fullscreen-quad.ts</button>
+          <button class="tab" data-pane="f-phys" type="button">physics.ts</button>
+          <button class="tab" data-pane="f-store" type="button">store.ts</button>
+          <button class="tab" data-pane="f-boot" type="button">bootstrap.ts</button>
+        </div>
+        <button class="note-toggle" id="note-toggle" type="button" title="모든 주석 펼침/접음">💬 주석</button>
+      </div>
+      <div class="pane active" id="f-glsl" data-file="metaball.glsl" data-lang="glsl"></div>
+      <div class="pane" id="f-loop" data-file="loop.ts" data-lang="ts"></div>
+      <div class="pane" id="f-mat" data-file="material.ts" data-lang="ts"></div>
+      <div class="pane" id="f-fsq" data-file="fullscreen-quad.ts" data-lang="ts"></div>
+      <div class="pane" id="f-phys" data-file="physics.ts" data-lang="ts"></div>
+      <div class="pane" id="f-store" data-file="store.ts" data-lang="ts"></div>
+      <div class="pane" id="f-boot" data-file="bootstrap.ts" data-lang="ts"></div>
+    </div>
+
+    <script type="text/plain" id="src-f-glsl">precision highp float;
+
+// MAX_BLOBS is injected via ShaderMaterial.defines.
+#ifndef MAX_BLOBS
+#define MAX_BLOBS 32
+#endif
+
+uniform vec2 uResolution;
+uniform int uCount;
+uniform float uK;
+uniform float uAA;
+uniform float uColorSoftness;
+uniform vec3 uBackground;
+uniform float uBloom;
+uniform float uVignette;
+uniform float uRim;
+// xy = position in world units, z = radius, w = unused.
+uniform vec4 uBlobsXYZR[MAX_BLOBS];
+uniform vec3 uColors[MAX_BLOBS];
+
+varying vec2 vNdc;
+
+float sdCircle(vec2 p, vec2 c, float r) {
+  return length(p - c) - r;
+}
+
+float smin(float a, float b, float k) {
+  if (k <= 0.0) return min(a, b);
+  float h = max(k - abs(a - b), 0.0) / k;
+  return min(a, b) - h * h * k * 0.25;
+}
+
+void main() {
+  // World-space p: NDC.x scaled by aspect so x unit = y unit.
+  float aspect = uResolution.x / max(uResolution.y, 1.0);
+  vec2 p = vec2(vNdc.x * aspect * 0.5, vNdc.y * 0.5);
+
+  float d = 1e9;
+  vec3 cAcc = vec3(0.0);
+  float wAcc = 0.0;
+
+  int count = uCount;
+  for (int i = 0; i < MAX_BLOBS; i++) {
+    if (i >= count) break;
+    vec4 b = uBlobsXYZR[i];
+    float di = sdCircle(p, b.xy, b.z);
+    d = smin(d, di, uK);
+    float w = exp(-max(di, 0.0) * uColorSoftness);
+    cAcc += uColors[i] * w;
+    wAcc += w;
+  }
+
+  vec3 blobColor = (wAcc > 1e-5) ? (cAcc / wAcc) : uBackground;
+
+  // Fake normal from gradient for rim lighting — we cheat and use screen-space
+  // distance derivative magnitude. For SDF this would be ∇d; here we approximate
+  // using dFdx/dFdy via smoothstep falloff on d itself.
+  float aaPx = max(uAA, 0.0001);
+  float aaWorld = aaPx * (1.0 / max(uResolution.y, 1.0));
+  float inside = 1.0 - smoothstep(0.0, aaWorld, d);
+
+  // Rim: brighten where |d| is near zero but on the inside half.
+  float rimBand = exp(-pow(d / (aaWorld * 6.0), 2.0));
+  vec3 rim = vec3(1.0) * rimBand * uRim * inside;
+
+  // Fake bloom: extra glow outside the mask, falling off with distance.
+  float glow = exp(-max(d, 0.0) * (40.0 / max(uBloom * 2.0 + 0.2, 0.01)));
+  vec3 bloom = blobColor * glow * uBloom * (1.0 - inside);
+
+  // Background + blob core + rim + bloom.
+  vec3 col = mix(uBackground, blobColor + rim, inside) + bloom;
+
+  // Vignette based on NDC distance from center.
+  float vig = 1.0 - uVignette * smoothstep(0.6, 1.4, length(vNdc));
+  col *= vig;
+
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+    <script type="text/plain" id="src-f-loop">import type { AppContext } from './bootstrap';
+import { appStore, BOUNDS } from '../state/store';
+import { step } from '../sim/physics';
+
+export function startLoop(ctx: AppContext): () => void {
+  let frameId = 0;
+  let stopped = false;
+  let lastMs: number | null = null;
+
+  const tick = (timeMs: number) => {
+    if (stopped) return;
+
+    const dt = lastMs === null ? 1 / 60 : Math.min(0.05, (timeMs - lastMs) / 1000);
+    lastMs = timeMs;
+
+    const { sim, render, blobs } = appStore.getState();
+
+    step(dt, sim, blobs, BOUNDS, { pos: ctx.pointer.pos, active: ctx.pointer.active });
+
+    // Upload uniforms from store.
+    ctx.uniforms.uCount.value = blobs.length;
+    // k (shader smoothing) mapped from sim.blobSmoothness (0..1) to 0..0.5 world units.
+    ctx.uniforms.uK.value = 0.001 + sim.blobSmoothness * 0.5;
+    ctx.uniforms.uAA.value = render.aa;
+    ctx.uniforms.uColorSoftness.value = render.colorSoftness;
+    ctx.uniforms.uBackground.value.set(
+      render.backgroundColor[0],
+      render.backgroundColor[1],
+      render.backgroundColor[2],
+    );
+    ctx.uniforms.uBloom.value = render.bloom;
+    ctx.uniforms.uVignette.value = render.vignette;
+    ctx.uniforms.uRim.value = render.rimLight;
+
+    const xyzr = ctx.uniforms.uBlobsXYZR.value;
+    const colors = ctx.uniforms.uColors.value;
+    for (let i = 0; i < blobs.length; i++) {
+      const b = blobs[i];
+      xyzr[i].set(b.pos[0], b.pos[1], b.radius, 0);
+      colors[i].set(b.color[0], b.color[1], b.color[2]);
+    }
+
+    ctx.onFrame(timeMs);
+    ctx.renderer.render(ctx.scene, ctx.camera);
+    frameId = requestAnimationFrame(tick);
+  };
+
+  frameId = requestAnimationFrame(tick);
+
+  return () => {
+    stopped = true;
+    cancelAnimationFrame(frameId);
+  };
+}
+</script>
+
+    <script type="text/plain" id="src-f-mat">import { ShaderMaterial, Vector2, Vector3, Vector4 } from 'three';
+import metaballGLSL from './shaders/metaball.glsl?raw';
+import type { Backend } from './renderer';
+import { MAX_BLOBS } from '../state/store';
+
+export type MetaballUniforms = {
+  uResolution: { value: Vector2 };
+  uCount: { value: number };
+  uK: { value: number };
+  uAA: { value: number };
+  uColorSoftness: { value: number };
+  uBackground: { value: Vector3 };
+  uBloom: { value: number };
+  uVignette: { value: number };
+  uRim: { value: number };
+  uBlobsXYZR: { value: Vector4[] };
+  uColors: { value: Vector3[] };
+};
+
+export type MetaballMaterial = {
+  material: ShaderMaterial;
+  uniforms: MetaballUniforms;
+};
+
+const VERTEX_GLSL = /* glsl */ `
+  varying vec2 vNdc;
+  void main() {
+    vNdc = position.xy;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
+function makeVec4Array(n: number): Vector4[] {
+  const arr: Vector4[] = [];
+  for (let i = 0; i < n; i++) arr.push(new Vector4(0, 0, 0, 0));
+  return arr;
+}
+
+function makeVec3Array(n: number): Vector3[] {
+  const arr: Vector3[] = [];
+  for (let i = 0; i < n; i++) arr.push(new Vector3(0, 0, 0));
+  return arr;
+}
+
+export function createMetaballMaterial(backend: Backend): MetaballMaterial {
+  if (backend !== 'webgl2') {
+    throw new Error(`[material] backend "${backend}" not yet implemented`);
+  }
+
+  const uniforms: MetaballUniforms = {
+    uResolution: { value: new Vector2(1, 1) },
+    uCount: { value: 0 },
+    uK: { value: 0.15 },
+    uAA: { value: 1.5 },
+    uColorSoftness: { value: 6 },
+    uBackground: { value: new Vector3(0.03, 0.03, 0.05) },
+    uBloom: { value: 0.2 },
+    uVignette: { value: 0.25 },
+    uRim: { value: 0.3 },
+    uBlobsXYZR: { value: makeVec4Array(MAX_BLOBS) },
+    uColors: { value: makeVec3Array(MAX_BLOBS) },
+  };
+
+  const material = new ShaderMaterial({
+    uniforms: uniforms as unknown as Record<string, { value: unknown }>,
+    vertexShader: VERTEX_GLSL,
+    fragmentShader: metaballGLSL,
+    defines: { MAX_BLOBS: String(MAX_BLOBS) },
+    depthTest: false,
+    depthWrite: false,
+    transparent: false,
+  });
+
+  return { material, uniforms };
+}
+</script>
+
+    <script type="text/plain" id="src-f-fsq">import {
+  BufferAttribute,
+  BufferGeometry,
+  Mesh,
+  OrthographicCamera,
+  Scene,
+  type Material,
+} from 'three';
+
+export type FullscreenQuad = {
+  scene: Scene;
+  camera: OrthographicCamera;
+  mesh: Mesh;
+};
+
+export function createFullscreenQuad(material: Material): FullscreenQuad {
+  // NDC-space triangle covering [-1, 3] on both axes (Blackman / Bavoil trick).
+  const positions = new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]);
+  const uvs = new Float32Array([0, 0, 2, 0, 0, 2]);
+
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new BufferAttribute(uvs, 2));
+
+  const mesh = new Mesh(geometry, material);
+  mesh.frustumCulled = false;
+
+  const scene = new Scene();
+  scene.add(mesh);
+
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  return { scene, camera, mesh };
+}
+</script>
+
+    <script type="text/plain" id="src-f-phys">import type { Blob, SimParams, Vec2 } from '../state/types';
+import type { Bounds } from './blob';
+
+export type PointerState = {
+  pos: Vec2 | null;
+  active: boolean; // true while pressed
+};
+
+const MAX_SUBSTEPS = 3;
+const FIXED_DT = 1 / 120;
+
+// Public entry: advance physics by wall-clock dt, subdivided into fixed sub-steps.
+// Mutates blob.pos / blob.prev in place. The store's array reference is unchanged.
+export function step(
+  dtSeconds: number,
+  sim: SimParams,
+  blobs: Blob[],
+  bounds: Bounds,
+  pointer: PointerState,
+): void {
+  if (blobs.length === 0 || dtSeconds <= 0) return;
+  const scaled = dtSeconds * Math.max(0, sim.timeScale);
+  const steps = Math.min(MAX_SUBSTEPS, Math.max(1, Math.ceil(scaled / FIXED_DT)));
+  const h = scaled / steps;
+  for (let s = 0; s < steps; s++) substep(h, sim, blobs, bounds, pointer);
+}
+
+function substep(
+  h: number,
+  sim: SimParams,
+  blobs: Blob[],
+  bounds: Bounds,
+  pointer: PointerState,
+): void {
+  const n = blobs.length;
+  const ax = new Array<number>(n).fill(0);
+  const ay = new Array<number>(n).fill(0);
+
+  // Gravity (positive = downward screen, -y in world).
+  const g = sim.gravity * 1.2;
+  for (let i = 0; i < n; i++) ay[i] -= g;
+
+  // Pairwise attraction (soft). O(n²), n ≤ 32.
+  const attractStrength = sim.attraction * 2.0;
+  if (attractStrength > 0) {
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const a = blobs[i];
+        const b = blobs[j];
+        const dx = b.pos[0] - a.pos[0];
+        const dy = b.pos[1] - a.pos[1];
+        const d2 = dx * dx + dy * dy + 1e-4;
+        const d = Math.sqrt(d2);
+        const rSum = a.radius + b.radius;
+        // smoothly fade out beyond 3× the combined radius.
+        const falloff = Math.max(0, 1 - d / (rSum * 3));
+        const f = (attractStrength * falloff) / d;
+        const fx = dx * f;
+        const fy = dy * f;
+        ax[i] += fx / Math.max(a.mass, 1e-3);
+        ay[i] += fy / Math.max(a.mass, 1e-3);
+        ax[j] -= fx / Math.max(b.mass, 1e-3);
+        ay[j] -= fy / Math.max(b.mass, 1e-3);
+      }
+    }
+  }
+
+  // Pointer spring (pulls ALL blobs toward pointer while active).
+  if (pointer.active && pointer.pos && sim.mouseForce > 0) {
+    const [px, py] = pointer.pos;
+    const k = sim.mouseForce * 3.5;
+    for (let i = 0; i < n; i++) {
+      const b = blobs[i];
+      const dx = px - b.pos[0];
+      const dy = py - b.pos[1];
+      const d2 = dx * dx + dy * dy + 1e-3;
+      const d = Math.sqrt(d2);
+      const falloff = Math.max(0, 1 - d / 1.2);
+      ax[i] += (dx / d) * k * falloff;
+      ay[i] += (dy / d) * k * falloff;
+    }
+  }
+
+  // Velocity-Verlet via position-Verlet trick with velocity damping.
+  // v ≈ (pos - prev) / h → apply damping → integrate.
+  const dampPerSec = Math.max(0, Math.min(1, sim.damping));
+  const dampFactor = Math.pow(1 - dampPerSec, h);
+  for (let i = 0; i < n; i++) {
+    const b = blobs[i];
+    const vx = (b.pos[0] - b.prev[0]) * dampFactor;
+    const vy = (b.pos[1] - b.prev[1]) * dampFactor;
+    const nx = b.pos[0] + vx + ax[i] * h * h;
+    const ny = b.pos[1] + vy + ay[i] * h * h;
+    b.prev[0] = b.pos[0];
+    b.prev[1] = b.pos[1];
+    b.pos[0] = nx;
+    b.pos[1] = ny;
+  }
+
+  // Boundary handling.
+  switch (sim.boundaryMode) {
+    case 'bounce':
+      for (let i = 0; i < n; i++) reflectBounce(blobs[i], bounds);
+      break;
+    case 'wrap':
+      for (let i = 0; i < n; i++) wrapBounds(blobs[i], bounds);
+      break;
+    case 'soft':
+      for (let i = 0; i < n; i++) softPush(blobs[i], bounds, h);
+      break;
+  }
+}
+
+function reflectBounce(b: Blob, bounds: Bounds): void {
+  const r = b.radius * 0.7;
+  const restitution = 0.85;
+  if (b.pos[0] < -bounds.x + r) {
+    const over = -bounds.x + r - b.pos[0];
+    b.pos[0] = -bounds.x + r + over;
+    const v = b.pos[0] - b.prev[0];
+    b.prev[0] = b.pos[0] + v / restitution;
+  } else if (b.pos[0] > bounds.x - r) {
+    const over = b.pos[0] - (bounds.x - r);
+    b.pos[0] = bounds.x - r - over;
+    const v = b.pos[0] - b.prev[0];
+    b.prev[0] = b.pos[0] + v / restitution;
+  }
+  if (b.pos[1] < -bounds.y + r) {
+    const over = -bounds.y + r - b.pos[1];
+    b.pos[1] = -bounds.y + r + over;
+    const v = b.pos[1] - b.prev[1];
+    b.prev[1] = b.pos[1] + v / restitution;
+  } else if (b.pos[1] > bounds.y - r) {
+    const over = b.pos[1] - (bounds.y - r);
+    b.pos[1] = bounds.y - r - over;
+    const v = b.pos[1] - b.prev[1];
+    b.prev[1] = b.pos[1] + v / restitution;
+  }
+}
+
+function wrapBounds(b: Blob, bounds: Bounds): void {
+  const wx = bounds.x * 2;
+  const wy = bounds.y * 2;
+  if (b.pos[0] < -bounds.x) {
+    b.pos[0] += wx;
+    b.prev[0] += wx;
+  } else if (b.pos[0] > bounds.x) {
+    b.pos[0] -= wx;
+    b.prev[0] -= wx;
+  }
+  if (b.pos[1] < -bounds.y) {
+    b.pos[1] += wy;
+    b.prev[1] += wy;
+  } else if (b.pos[1] > bounds.y) {
+    b.pos[1] -= wy;
+    b.prev[1] -= wy;
+  }
+}
+
+function softPush(b: Blob, bounds: Bounds, h: number): void {
+  const r = b.radius * 0.7;
+  const k = 6.0;
+  let fx = 0;
+  let fy = 0;
+  if (b.pos[0] < -bounds.x + r) fx += (-bounds.x + r - b.pos[0]) * k;
+  else if (b.pos[0] > bounds.x - r) fx += (bounds.x - r - b.pos[0]) * k;
+  if (b.pos[1] < -bounds.y + r) fy += (-bounds.y + r - b.pos[1]) * k;
+  else if (b.pos[1] > bounds.y - r) fy += (bounds.y - r - b.pos[1]) * k;
+  b.pos[0] += fx * h * h;
+  b.pos[1] += fy * h * h;
+}
+</script>
+
+    <script type="text/plain" id="src-f-store">import { createStore } from 'zustand/vanilla';
+import type {
+  Blob,
+  PerformanceParams,
+  PresetName,
+  RenderParams,
+  RootState,
+  SimParams,
+} from './types';
+import { mulberry32 } from '../util/rng';
+import { populate, createBlob } from '../sim/blob';
+import { getPreset } from '../sim/presets';
+
+export const MAX_BLOBS = 32;
+export const DEFAULT_SEED = 1337;
+
+export const DEFAULT_SIM: SimParams = {
+  count: 6,
+  blobSmoothness: 0.5,
+  gravity: 0,
+  damping: 0.05,
+  attraction: 0.01,
+  mouseForce: 4.5,
+  boundaryMode: 'bounce',
+  timeScale: 1,
+};
+
+export const DEFAULT_RENDER: RenderParams = {
+  aa: 1.5,
+  colorSoftness: 6,
+  backgroundColor: [0.03, 0.03, 0.05],
+  palette: 'Default',
+  bloom: 0.2,
+  vignette: 0.25,
+  rimLight: 0.3,
+};
+
+export const DEFAULT_PERF: PerformanceParams = {
+  dprCap: 1.5,
+  showFps: true,
+};
+
+const UNIT_BOUNDS = { x: 0.6, y: 0.5 };
+
+function initialState(): RootState {
+  const seed = DEFAULT_SEED;
+  const rng = mulberry32(seed);
+  return {
+    sim: { ...DEFAULT_SIM },
+    render: { ...DEFAULT_RENDER },
+    perf: { ...DEFAULT_PERF },
+    blobs: populate(rng, DEFAULT_SIM.count, UNIT_BOUNDS),
+    seed,
+    presetName: null,
+  };
+}
+
+export const appStore = createStore<RootState>(() => initialState());
+
+// --- mutators / actions -----------------------------------------------------
+
+export function setSim(patch: Partial<SimParams>): void {
+  const prev = appStore.getState().sim;
+  const next = { ...prev, ...patch };
+  appStore.setState({ sim: next, presetName: null });
+  if (patch.count !== undefined && patch.count !== prev.count) {
+    syncBlobCount(patch.count);
+  }
+}
+
+export function setRender(patch: Partial<RenderParams>): void {
+  appStore.setState({
+    render: { ...appStore.getState().render, ...patch },
+    presetName: null,
+  });
+}
+
+export function setPerf(patch: Partial<PerformanceParams>): void {
+  appStore.setState({
+    perf: { ...appStore.getState().perf, ...patch },
+  });
+}
+
+export function setSeed(seed: number): void {
+  appStore.setState({ seed });
+}
+
+function syncBlobCount(targetCount: number): void {
+  const clamped = Math.max(1, Math.min(MAX_BLOBS, Math.floor(targetCount)));
+  const { blobs, seed } = appStore.getState();
+  if (clamped === blobs.length) return;
+  if (clamped < blobs.length) {
+    appStore.setState({ blobs: blobs.slice(0, clamped) });
+    return;
+  }
+  const rng = mulberry32(seed + blobs.length * 31);
+  const extra: Blob[] = [];
+  for (let i = 0; i < clamped - blobs.length; i++) {
+    extra.push(createBlob(rng, UNIT_BOUNDS));
+  }
+  appStore.setState({ blobs: [...blobs, ...extra] });
+}
+
+export function addBlob(): void {
+  const { blobs, sim, seed } = appStore.getState();
+  if (blobs.length >= MAX_BLOBS) return;
+  const rng = mulberry32(seed + blobs.length * 31 + 7);
+  const next = [...blobs, createBlob(rng, UNIT_BOUNDS)];
+  appStore.setState({ blobs: next, sim: { ...sim, count: next.length } });
+}
+
+export function removeBlob(id: string): void {
+  const { blobs, sim } = appStore.getState();
+  const next = blobs.filter((b) => b.id !== id);
+  if (next.length === blobs.length) return;
+  appStore.setState({ blobs: next, sim: { ...sim, count: next.length } });
+}
+
+export function clearBlobs(): void {
+  appStore.setState({ blobs: [], sim: { ...appStore.getState().sim, count: 0 } });
+}
+
+export function randomize(seed?: number): void {
+  const { sim } = appStore.getState();
+  const useSeed = seed ?? Math.floor(Math.random() * 2 ** 30);
+  const rng = mulberry32(useSeed);
+  appStore.setState({
+    blobs: populate(rng, sim.count, UNIT_BOUNDS),
+    seed: useSeed,
+    presetName: null,
+  });
+}
+
+export function loadPreset(name: PresetName): void {
+  const p = getPreset(name);
+  const rng = mulberry32(p.seed);
+  appStore.setState({
+    sim: { ...DEFAULT_SIM, ...p.sim },
+    render: { ...DEFAULT_RENDER, ...p.render },
+    blobs: populate(rng, p.sim.count ?? DEFAULT_SIM.count, UNIT_BOUNDS, p.radiusRange, p.palette),
+    seed: p.seed,
+    presetName: name,
+  });
+}
+
+export const BOUNDS = UNIT_BOUNDS;
+</script>
+
+    <script type="text/plain" id="src-f-boot">import type { OrthographicCamera, Scene, WebGLRenderer } from 'three';
+import { createRenderer, type Backend } from '../render/renderer';
+import { createMetaballMaterial, type MetaballUniforms } from '../render/material';
+import { createFullscreenQuad } from '../render/fullscreen-quad';
+import { installResize } from '../util/resize';
+import { mountFpsOverlay } from '../ui/fps-overlay';
+import { installPointer, type PointerRuntime } from '../util/pointer';
+import { mountControls } from '../ui/controls';
+import { hydrateFromUrl } from '../state/url-sync';
+
+export type AppContext = {
+  renderer: WebGLRenderer;
+  scene: Scene;
+  camera: OrthographicCamera;
+  uniforms: MetaballUniforms;
+  backend: Backend;
+  pointer: PointerRuntime;
+  onFrame: (timeMs: number) => void;
+};
+
+function getCanvas(): HTMLCanvasElement {
+  const el = document.getElementById('gl');
+  if (!(el instanceof HTMLCanvasElement)) {
+    throw new Error('[bootstrap] <canvas id="gl"> not found');
+  }
+  return el;
+}
+
+export async function bootstrap(): Promise<AppContext> {
+  hydrateFromUrl();
+  const canvas = getCanvas();
+  const { renderer, backend } = await createRenderer(canvas);
+  const { material, uniforms } = createMetaballMaterial(backend);
+  const { scene, camera } = createFullscreenQuad(material);
+
+  installResize(renderer, uniforms);
+
+  const fpsEl = document.getElementById('fps');
+  const tickFps = fpsEl instanceof HTMLElement ? mountFpsOverlay(fpsEl) : () => {};
+
+  const pointer = installPointer(canvas);
+
+  const panelEl = document.getElementById('panel');
+  if (panelEl instanceof HTMLElement) mountControls(panelEl);
+
+  const onFrame = (timeMs: number) => {
+    tickFps(timeMs);
+  };
+
+  return { renderer, scene, camera, uniforms, backend, pointer, onFrame };
+}
+</script>
+  </section>
+
+  <section id="weak">
+    <h2><span class="num">§10</span> 약점 기록 (자동 저장)</h2>
+    <p class="muted">드릴 중 막힌 것만 메모. 폰에 저장되니 PC에서 열 땐 비어있음 — 그건 정상.</p>
+    <textarea class="notes" id="weakness" placeholder="예) Q4에서 O(N) 근거를 말로 설명 못함 → metaball.glsl 38~51줄 다시"></textarea>
+    <div class="saved-hint" id="save-hint">—</div>
+  </section>
+
+  <footer class="foot">
+    자급자족 HTML · 오프라인 OK · 진도·메모는 이 브라우저에만 저장<br/>
+    원본 소스: <code>NOTES.md</code> / <code>../../LEARNING.md</code>
+  </footer>
+</main>
+
+<script>
+(function () {
+  var STORE_PREFIX = 'metaball-notes:';
+
+  // Theme
+  var root = document.documentElement;
+  var themeKey = STORE_PREFIX + 'theme';
+  var saved = localStorage.getItem(themeKey);
+  if (saved === 'light') root.classList.add('light');
+  document.getElementById('theme-toggle').addEventListener('click', function () {
+    var isLight = root.classList.toggle('light');
+    localStorage.setItem(themeKey, isLight ? 'light' : 'dark');
+    var meta = document.querySelector('meta[name=theme-color]');
+    if (meta) meta.setAttribute('content', isLight ? '#ffffff' : '#0d0f13');
+  });
+
+  // Phase checkboxes + progress
+  var boxes = document.querySelectorAll('input[type=checkbox][data-key]');
+  var progress = document.getElementById('progress');
+  function updateProgress() {
+    var done = 0;
+    boxes.forEach(function (cb) { if (cb.checked) done++; });
+    progress.style.width = boxes.length ? (done / boxes.length * 100) + '%' : '0%';
+  }
+  boxes.forEach(function (cb) {
+    var k = STORE_PREFIX + cb.dataset.key;
+    cb.checked = localStorage.getItem(k) === '1';
+    cb.addEventListener('change', function () {
+      localStorage.setItem(k, cb.checked ? '1' : '0');
+      updateProgress();
+    });
+  });
+  updateProgress();
+
+  // Flashcards
+  document.querySelectorAll('.flash').forEach(function (el) {
+    el.addEventListener('click', function () {
+      el.classList.toggle('open');
+    });
+  });
+
+  // Weakness notes
+  var notes = document.getElementById('weakness');
+  var hint = document.getElementById('save-hint');
+  var notesKey = STORE_PREFIX + 'weakness';
+  notes.value = localStorage.getItem(notesKey) || '';
+  var saveTimer = null;
+  notes.addEventListener('input', function () {
+    if (saveTimer) clearTimeout(saveTimer);
+    hint.textContent = '저장 중…';
+    saveTimer = setTimeout(function () {
+      localStorage.setItem(notesKey, notes.value);
+      var t = new Date();
+      var hh = String(t.getHours()).padStart(2, '0');
+      var mm = String(t.getMinutes()).padStart(2, '0');
+      hint.textContent = '저장됨 · ' + hh + ':' + mm;
+    }, 350);
+  });
+  if (notes.value) hint.textContent = '—';
+
+  // ==== Code viewer ==========================================================
+
+  var CODE_NOTES = {
+    "f-glsl": {
+      1: "`precision highp float;` — 부동소수점 정밀도 선언. 셰이더의 모든 float 계산은 최소 24bit mantissa.\n모바일 GPU는 기본이 mediump(fp16)라 SDF 거리 누적 오차가 튀기 쉬움. highp 명시는 사실상 필수.",
+      3: "`// MAX_BLOBS is injected via defines.` — 아래 #define 가드의 의도 설명.\nmaterial.ts의 `defines: { MAX_BLOBS: '32' }`가 셰이더 소스 앞에 자동 주입됨.",
+      4: "`#ifndef MAX_BLOBS` — defines 주입이 실패했을 때의 fallback 가드. 32로 안전.",
+      8: "`uniform vec2 uResolution` — 캔버스 픽셀 크기. loop.ts가 매 프레임 업로드.\naspect 계산과 AA 두께 world 변환에 쓰임.",
+      9: "`uniform int uCount` — 현재 활성 블롭 개수. for 루프의 실제 반복 횟수 제어.",
+      10: "`uniform float uK` — smooth-min의 k 계수. loop.ts에서 `0.001 + smoothness*0.5`로 매핑.\n클수록 더 멀리서부터 녹기 시작.",
+      11: "`uniform float uAA` — 경계 AA 두께 (픽셀 단위). smoothstep falloff 폭.",
+      12: "`uniform float uColorSoftness` — 색 가중치 exp 감쇠 계수. 클수록 가까운 블롭 색이 지배적.",
+      17: "`// xy=position, z=radius, w=unused` — 패킹 규약.\nvec4로 둔 이유는 std140 UBO padding + 미래 확장 슬롯 확보.",
+      18: "`uniform vec4 uBlobsXYZR[MAX_BLOBS]` — 블롭 데이터 배열. MAX_BLOBS 고정 할당 (런타임 resize 불가).\nloop.ts가 `.set()`으로 덮어씀.",
+      19: "`uniform vec3 uColors[MAX_BLOBS]` — 블롭별 색상. 인덱스 매칭.",
+      21: "`varying vec2 vNdc` — 버텍스→프래그먼트 보간 변수.\n풀스크린 삼각형 3 꼭지점의 position.xy가 픽셀마다 보간되어 도착 = 그 픽셀의 NDC.",
+      23: "`sdCircle` — 원 SDF. 단 3줄에 'SDF = 거리 함수' 철학 응축.",
+      24: "`length(p-c) - r` — 중심에서의 유클리드 거리 − 반지름.\n>0 바깥, =0 표면, <0 내부. Lipschitz-1 성질 (gradient 크기 ≤ 1).",
+      27: "`smin` — polynomial smooth-min. 2D/3D 공통.",
+      28: "`if (k <= 0.0) return min(a, b);` — 0 나누기 방어 + k=0일 때 수학적으로 순수 min과 일치.",
+      29: "`h = max(k - abs(a-b), 0) / k` — 두 거리 차가 k 이내면 0..1, 아니면 0.\nsmoothing 영향권을 k 구간으로 제한.",
+      30: "`min(a,b) - h*h*k*0.25` — 감소량은 최대 k/4. h 제곱으로 부드럽게 증가.\nSDF Lipschitz-1 성질 크게 깨지 않음 (raymarch 안정성에 중요; 2D에선 덜 중요).",
+      33: "`void main()` — fragment shader 진입. 이 함수가 **픽셀마다 1회** 실행.\n1920×1080이면 프레임당 ~200만 호출.",
+      35: "`aspect = uResolution.x / max(uResolution.y, 1.0)` — 가로세로 비율. 0 방어로 max.",
+      36: "`p = vec2(vNdc.x*aspect*0.5, vNdc.y*0.5)` — NDC [-1,1]을 world 좌표로.\nx에만 aspect 곱해 세로 기준 정사각 유닛. 0.5는 BOUNDS.y와 일치.",
+      38: "`float d = 1e9` — 누적 최소 거리의 초기값. 매우 큰 수.\nsmin 반복으로 점차 줄어듦.",
+      39: "`cAcc, wAcc` — 색상 가중 평균용 누적기 (분자/분모).",
+      42: "`int count = uCount` — uniform을 로컬 int로 복사.\n옛 GLSL은 uniform을 for 루프 bound에 못 씀.",
+      43: "`for (int i=0; i<MAX_BLOBS; i++)` — bound는 컴파일 상수여야.\n`i < uCount` 직접 쓰면 일부 드라이버 reject.",
+      44: "`if (i >= count) break;` — 실제로는 count회만 실행. 컴파일러에 상수 bound를 보여주는 패턴.",
+      46: "`vec4 b = uBlobsXYZR[i]` — 블롭 데이터. b.xy=중심, b.z=반지름.",
+      47: "`di = sdCircle(p, b.xy, b.z)` — 이 블롭까지의 거리.",
+      48: "`d = smin(d, di, uK)` — 누적 SDF에 smooth union. **'녹는 경계'의 본질**.",
+      49: "`w = exp(-max(di, 0.0) * uColorSoftness)` — 색 가중치. di=0에서 w=1, 멀수록 지수 감쇠.\nmax로 내부(di<0)를 0에 clamp → 내부는 모두 최대 가중치.",
+      50: "`cAcc += uColors[i] * w` — 이 블롭 색이 w만큼 기여.",
+      51: "`wAcc += w` — 분모 누적.",
+      53: "`(wAcc > 1e-5) ? (cAcc/wAcc) : uBackground` — 가중 평균 or 배경 폴백.\n모든 블롭 멀면 wAcc≈0 → 0 나누기 방지.",
+      58: "`aaPx = max(uAA, 0.0001)` — AA 두께 하한.\nsmoothstep의 두 인자가 같으면 결과 undefined.",
+      59: "`aaWorld = aaPx / uResolution.y` — 픽셀 단위를 world 단위로 변환.\np 좌표계 세로 0.5 ↔ 세로 픽셀 수.",
+      60: "`inside = 1 - smoothstep(0, aaWorld, d)` — AA 내부 마스크.\nd<0 → 1(완전 내부), d>aaWorld → 0(바깥), 사이는 3차 보간.",
+      63: "`rimBand = exp(-pow(d/(aaWorld*6), 2))` — 가우시안. d≈0 근처에서만 값 높음.\n**가짜 rim** — 진짜 3D normal 없이 거리만으로 근사.",
+      64: "`rim = vec3(1) * rimBand * uRim * inside` — 내부에서만 rim. 바깥(inside=0)에선 0.",
+      67: "`glow = exp(-max(d,0) * (40/(uBloom*2+0.2)))` — 바깥 발광 감쇠.\nuBloom 클수록 exp 지수 작아져 발광 범위 넓음.",
+      68: "`bloom = blobColor * glow * uBloom * (1-inside)` — 바깥에서만.\n블롭 색이 경계 바깥으로 스며 나감.",
+      71: "`col = mix(bg, blobColor+rim, inside) + bloom` — 최종 합성.\n내부=blobColor+rim, 바깥=배경, 경계=AA 블렌드, bloom은 가산.",
+      74: "`vig = 1 - uVignette * smoothstep(0.6, 1.4, length(vNdc))` — NDC 중심 거리 기반 비네트.\n반경 0.6까지 그대로, 1.4부터 완전 적용.",
+      77: "`gl_FragColor = vec4(col, 1.0)` — alpha=1 불투명 출력.\nmaterial.ts에서 transparent:false."
+    },
+    "f-loop": {
+      1: "`import type { AppContext }` — 타입 전용 import. 런타임 번들에 미포함.",
+      3: "`import { step }` — 물리 한 단계. blobs 배열을 in-place mutate.",
+      5: "`startLoop(ctx)` — 렌더 루프 시작. 정지 함수 반환 (cleanup용).",
+      9: "`lastMs` — 이전 프레임의 timeMs. dt 계산용.",
+      13: "`Math.min(0.05, ...)` — dt를 50ms(≈20fps)로 clamp.\n탭 backgrounded 복귀 시 거대 dt로 블롭 순간이동 방지.",
+      16: "`appStore.getState()` — zustand 상태 1회 스냅샷.\n한 프레임 내 일관된 상태로 연산.",
+      18: "`step(dt, sim, blobs, BOUNDS, pointer)` — CPU 물리. blobs in-place 변경.",
+      21: "`uniforms.uCount.value = blobs.length` — 셰이더 uniform 업데이트.\nThree.js가 .value 변경을 감지해 다음 draw call에서 GPU에 upload.",
+      23: "`uK = 0.001 + smoothness*0.5` — UI [0,1]을 world [0.001, 0.501]로 매핑.\n0 근처도 셰이더 smin의 k<=0 가드로 안전.",
+      36: "`const xyzr = uniforms.uBlobsXYZR.value` — Vector4[] 참조.\n배열은 MAX_BLOBS 길이로 미리 할당. `.set()`으로 덮어쓰기만 → 객체 신규 생성 없음 (GC 프리).",
+      39: "`xyzr[i].set(b.pos[0], b.pos[1], b.radius, 0)` — [x, y, radius, w=0].\nw는 셰이더에서 unused (패딩 + 미래 확장 슬롯).",
+      43: "`renderer.render(scene, camera)` — WebGL draw call.\n풀스크린 삼각형 1개 제출 → fragment shader가 모든 픽셀에 병렬 실행.",
+      45: "`requestAnimationFrame(tick)` — 다음 프레임 예약. 보통 ~60Hz (디스플레이 VSync)."
+    },
+    "f-mat": {
+      2: "`metaballGLSL from './shaders/metaball.glsl?raw'` — Vite의 raw import.\n셰이더 파일을 문자열로 번들 (assetsInclude: ['*.glsl']).",
+      25: "`VERTEX_GLSL` — 버텍스 셰이더. 3D 변환도 projection도 없음.",
+      26: "`varying vec2 vNdc` — fragment로 NDC 좌표 전달.",
+      28: "`vNdc = position.xy` — 꼭지점 x,y를 그대로 varying으로. 픽셀마다 보간.",
+      29: "`gl_Position = vec4(position.xy, 0.0, 1.0)` — NDC로 직접. 프로젝션 행렬 없음.",
+      33: "`makeVec4Array(n)` — new Vector4() n개 미리 생성. 매 프레임 realloc 회피.",
+      46: "`if (backend !== 'webgl2')` — Week 2에 WebGPU 추가될 분기점.",
+      50: "`uniforms` 객체 — .value로 Three가 WebGL uniform location에 자동 upload.",
+      60: "`uBlobsXYZR: makeVec4Array(MAX_BLOBS)` — MAX_BLOBS 크기 배열 미리 할당.",
+      64: "`new ShaderMaterial(...)` — raw 셰이더 material.\nfragment/vertex GLSL 문자열을 직접 넘김.",
+      68: "`defines: { MAX_BLOBS: String(MAX_BLOBS) }` — GLSL 소스 앞에 #define 주입.\n셰이더의 #ifndef 분기로 이어짐.",
+      69: "`depthTest: false` — 풀스크린 1장이라 깊이 비교 불필요.",
+      70: "`depthWrite: false` — depth buffer에 쓰지도 않음. fillrate 절약.",
+      71: "`transparent: false` — alpha blend 없음."
+    },
+    "f-fsq": {
+      17: "`// NDC-space triangle ...` — Bavoil 트릭 / full-screen triangle 관용구.",
+      18: "`[-1,-1,0, 3,-1,0, -1,3,0]` — 3 꼭지점 (x,y,z).\nNDC [-1,1]²을 덮는 최소 삼각형. 쿼드(6 vertex)의 절반. 대각선 이음새 없음.",
+      19: "`[0,0, 2,0, 0,2]` — 대응 UV. NDC [-1,1]이 [0,1]로 매핑.",
+      26: "`mesh.frustumCulled = false` — Three.js가 이 거대 삼각형을 잘라내지 않도록.",
+      31: "`OrthographicCamera(-1,1,1,-1,0,1)` — NDC 그대로. 실제 매핑 없는 형식적 카메라."
+    },
+    "f-phys": {
+      9: "`MAX_SUBSTEPS = 3` — 긴 dt도 최대 3회로 cap. 그 이상 버림.",
+      10: "`FIXED_DT = 1/120` — 고정 시간 단계(120Hz).\n가변 dt로 바로 풀면 비결정적. 고정 substep으로 재현성 확보.",
+      14: "`step` — 외부 공개 API. 벽시계 dt를 여러 고정 substep으로 쪼갬.",
+      23: "`steps = Math.min(MAX_SUBSTEPS, ...)` — substep 개수 계산.",
+      28: "`substep(h, ...)` — 실제 물리 업데이트 1회.",
+      44: "`for i, for j=i+1` — O(n²) 쌍별 인력. n ≤ 32라 부담 적음.",
+      84: "`// Velocity-Verlet via position-Verlet trick` — 위치 기반 Verlet.\nvelocity 저장하지 않고 `pos - prev`로 추정.",
+      86: "`dampFactor = (1 - damping)^h` — 연속 감쇠를 substep 크기에 맞춤.\ndamping=0.05면 초당 5% 감쇠.",
+      89: "`vx = (pos - prev) * dampFactor` — 속도 추정 + 감쇠.\n**Verlet의 핵심**: 2 프레임 위치 차이로 velocity 복원.",
+      92: "`nx = pos + vx + ax*h*h` — Verlet 본식.\n다음 위치 = 현재 + 감쇠된 속도 + 가속도·h². Euler보다 에너지 보존 우수.",
+      94: "`prev = pos; pos = new` — 이전 위치 저장. 다음 step의 velocity 복원용."
+    },
+    "f-store": {
+      14: "`MAX_BLOBS = 32` — 셰이더 uniform 배열 크기와 **반드시 일치**.\nmaterial.ts에서 defines로 셰이더에 전달.",
+      17: "`DEFAULT_SIM` — 초기 시뮬 값. count=6, gravity=0.",
+      43: "`UNIT_BOUNDS = { x: 0.6, y: 0.5 }` — world 반범위.\n셰이더의 `(vNdc*aspect*0.5, vNdc.y*0.5)`와 일치 (세로 ±0.5).",
+      58: "`createStore<RootState>(...)` — 전역 store. main.ts 부팅 시 1회 생성.",
+      62: "`setSim(patch)` — 부분 업데이트. 호출 시 presetName 초기화 (커스텀 전환).",
+      88: "`syncBlobCount(n)` — blobs 배열 길이를 count에 맞춤. 감소는 slice, 증가는 새 blob.",
+      134: "`loadPreset(name)` — sim + render + blobs를 한 번에 설정."
+    },
+    "f-boot": {
+      11: "`AppContext` — 전체 앱 컨텍스트. loop.ts가 이 객체를 참조.",
+      21: "`getCanvas()` — index.html의 <canvas id=\"gl\"> 얻기. 없으면 throw.",
+      29: "`bootstrap()` — 앱 1회 부팅. AppContext 반환.",
+      30: "`hydrateFromUrl()` — URL 쿼리 파싱 → store 주입. 공유 링크 복원.",
+      32: "`createRenderer(canvas)` — WebGL2 렌더러 생성.",
+      33: "`createMetaballMaterial(backend)` — ShaderMaterial + uniform 초기값.",
+      34: "`createFullscreenQuad(material)` — 삼각형 mesh + scene + 형식 camera.",
+      36: "`installResize` — resize 이벤트에 renderer와 uResolution 동기화.",
+      41: "`installPointer(canvas)` — 포인터 좌표/활성 상태 훅.",
+      44: "`mountControls(panelEl)` — tweakpane UI 패널 마운트.",
+      46: "`onFrame` — 매 프레임 콜백. 현재는 fps overlay만."
+    }
+  };
+
+  // Highlighter
+  var GLSL_KW = ['void','bool','int','float','uint','vec2','vec3','vec4','mat2','mat3','mat4','if','else','for','while','return','break','continue','discard','uniform','varying','attribute','in','out','inout','const','precision','highp','mediump','lowp','struct','true','false'];
+  var GLSL_FN = ['sin','cos','tan','atan','pow','exp','log','sqrt','abs','floor','ceil','fract','mod','min','max','clamp','mix','step','smoothstep','length','normalize','dot','cross','reflect','refract','texture','texture2D'];
+  var TS_KW = ['import','export','from','default','const','let','var','function','return','if','else','for','while','do','break','continue','switch','case','new','class','extends','implements','interface','type','enum','declare','as','is','void','null','undefined','true','false','this','super','async','await','try','catch','finally','throw','typeof','instanceof','in','of','readonly','public','private','protected','static','abstract','override'];
+  var TS_TY = ['string','number','boolean','any','unknown','never','object','bigint','Array','Promise','Map','Set','Record','Partial','Readonly','Pick','Omit'];
+
+  function kwRegex(list) { return new RegExp('^(?:' + list.join('|') + ')\\b'); }
+
+  function makeRules(lang) {
+    var r = [
+      { type: 'comment', regex: /^\/\/[^\n]*/ },
+      { type: 'comment', regex: /^\/\*[\s\S]*?\*\// },
+      { type: 'string',  regex: /^"(?:[^"\\]|\\.)*"/ },
+      { type: 'string',  regex: /^'(?:[^'\\]|\\.)*'/ },
+      { type: 'string',  regex: /^`(?:[^`\\]|\\.)*`/ },
+      { type: 'number',  regex: /^(?:0[xX][0-9a-fA-F]+|\d+(?:\.\d*)?(?:[eE][+-]?\d+)?[fFuU]?|\.\d+)/ }
+    ];
+    if (lang === 'glsl') {
+      r.push({ type: 'macro',    regex: /^#\w+/ });
+      r.push({ type: 'keyword',  regex: kwRegex(GLSL_KW) });
+      r.push({ type: 'function', regex: kwRegex(GLSL_FN) });
+    } else {
+      r.push({ type: 'keyword',  regex: kwRegex(TS_KW) });
+      r.push({ type: 'type',     regex: kwRegex(TS_TY) });
+    }
+    r.push({ type: 'ident', regex: /^[a-zA-Z_$][\w$]*/ });
+    return r;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function tokenize(src, rules) {
+    var out = [];
+    var i = 0;
+    while (i < src.length) {
+      var sub = src.slice(i);
+      var matched = false;
+      for (var ri = 0; ri < rules.length; ri++) {
+        var m = sub.match(rules[ri].regex);
+        if (m) {
+          out.push({ type: rules[ri].type, text: m[0] });
+          i += m[0].length;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        var last = out[out.length - 1];
+        if (last && last.type === 'plain') last.text += src[i];
+        else out.push({ type: 'plain', text: src[i] });
+        i++;
+      }
+    }
+    return out;
+  }
+
+  function renderTokens(tokens) {
+    var html = '';
+    for (var i = 0; i < tokens.length; i++) {
+      var t = tokens[i];
+      if (t.type === 'plain' || t.type === 'ident') html += escapeHtml(t.text);
+      else html += '<span class="tok-' + t.type + '">' + escapeHtml(t.text) + '</span>';
+    }
+    return html;
+  }
+
+  var LINE_PREFIX = {
+    'f-glsl':  'metaball-glsl',
+    'f-loop':  'loop-ts',
+    'f-mat':   'material-ts',
+    'f-fsq':   'fullscreen-quad-ts',
+    'f-phys':  'physics-ts',
+    'f-store': 'store-ts',
+    'f-boot':  'bootstrap-ts'
+  };
+
+  function renderPane(pane) {
+    var srcEl = document.getElementById('src-' + pane.id);
+    if (!srcEl) return;
+    var src = srcEl.textContent;
+    if (src.charAt(0) === '\n') src = src.slice(1);
+    if (src.charAt(src.length - 1) === '\n') src = src.slice(0, -1);
+    var lang = pane.dataset.lang;
+    var rules = makeRules(lang);
+    var lines = src.split('\n');
+    var prefix = LINE_PREFIX[pane.id] || pane.id;
+    var notes = CODE_NOTES[pane.id] || {};
+    var html = '<div class="code-block">';
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var tokens = tokenize(line, rules);
+      var n = i + 1;
+      var hasNote = !!notes[n];
+      html += '<div class="code-line' + (hasNote ? ' has-note' : '') + '" id="' + prefix + '-L' + n + '">';
+      html += '<span class="ln" data-line="' + n + '">' + n + '</span>';
+      var txt = renderTokens(tokens);
+      if (txt.length === 0) txt = '&nbsp;';
+      html += '<span class="txt">' + txt + '</span>';
+      html += '</div>';
+      if (hasNote) {
+        var noteHtml = escapeHtml(notes[n])
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n/g, '<br/>');
+        html += '<div class="code-note">' + noteHtml + '</div>';
+      }
+    }
+    html += '</div>';
+    pane.innerHTML = html;
+  }
+
+  document.querySelectorAll('.code-viewer .pane').forEach(function (p) { renderPane(p); });
+
+  // Tab switching
+  document.querySelectorAll('.code-toolbar .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var target = tab.dataset.pane;
+      document.querySelectorAll('.code-toolbar .tab').forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+      });
+      document.querySelectorAll('.code-viewer .pane').forEach(function (p) {
+        p.classList.toggle('active', p.id === target);
+      });
+    });
+  });
+
+  // Note toggle
+  var noteToggle = document.getElementById('note-toggle');
+  var viewer = document.getElementById('viewer');
+  var NOTE_KEY = STORE_PREFIX + 'show-notes';
+  if (localStorage.getItem(NOTE_KEY) === '1') {
+    viewer.classList.add('show-notes');
+    noteToggle.classList.add('active');
+  }
+  noteToggle.addEventListener('click', function () {
+    var on = viewer.classList.toggle('show-notes');
+    noteToggle.classList.toggle('active', on);
+    localStorage.setItem(NOTE_KEY, on ? '1' : '0');
+  });
+
+  // Line number click → URL hash + focused
+  viewer.addEventListener('click', function (e) {
+    var ln = e.target.closest && e.target.closest('.ln');
+    if (!ln) return;
+    var line = ln.closest('.code-line');
+    if (!line) return;
+    document.querySelectorAll('.code-line.focused').forEach(function (el) {
+      el.classList.remove('focused');
+    });
+    line.classList.add('focused');
+    history.replaceState(null, '', '#' + line.id);
+  });
+
+  // Hash routing: activate tab and scroll to target line or pane
+  function gotoHash() {
+    var h = location.hash.slice(1);
+    if (!h) return;
+    var el = document.getElementById(h);
+    if (!el) return;
+    if (el.classList.contains('code-line')) {
+      var pane = el.closest('.pane');
+      if (pane) {
+        document.querySelectorAll('.code-toolbar .tab').forEach(function (t) {
+          t.classList.toggle('active', t.dataset.pane === pane.id);
+        });
+        document.querySelectorAll('.code-viewer .pane').forEach(function (p) {
+          p.classList.toggle('active', p.id === pane.id);
+        });
+      }
+      el.classList.add('focused');
+      setTimeout(function () {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 80);
+    } else if (el.classList.contains('pane')) {
+      document.querySelectorAll('.code-toolbar .tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.pane === el.id);
+      });
+      document.querySelectorAll('.code-viewer .pane').forEach(function (p) {
+        p.classList.toggle('active', p.id === el.id);
+      });
+      setTimeout(function () {
+        document.getElementById('code').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    }
+  }
+  window.addEventListener('hashchange', gotoHash);
+  gotoHash();
+})();
+</script>
+</body>
+</html>
